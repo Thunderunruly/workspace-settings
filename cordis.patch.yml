@@ -1,0 +1,4 @@
+- insert:
+    - id: workspace-settings
+      name: 'dsh-workspace-settings'
+      config: {}

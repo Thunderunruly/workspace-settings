@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Workspace Settings",
+    "description": "Save per-workspace session defaults (mode, permissions, model, reasoning effort) and apply them automatically to new or reused blank sessions. Reachable from each workspace row's \"...\" menu and from a Settings page."
+  }
+}

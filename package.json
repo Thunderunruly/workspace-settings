@@ -1,0 +1,65 @@
+{
+  "name": "dsh-workspace-settings",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Per-workspace session defaults for DeepSeek Harness: mode (agent preset), permission preset, model, reasoning effort and Chat work-details preferences, saved per workspace and applied to new sessions.",
+  "author": "Thunderunruly",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Thunderunruly/workspace-settings.git"
+  },
+  "homepage": "https://github.com/Thunderunruly/workspace-settings#readme",
+  "bugs": {
+    "url": "https://github.com/Thunderunruly/workspace-settings/issues"
+  },
+  "keywords": [
+    "deepseek",
+    "harness",
+    "dsh",
+    "dsh-plugin",
+    "plugin",
+    "workspace",
+    "settings",
+    "agent-preset",
+    "permission",
+    "model",
+    "web-ui"
+  ],
+  "engines": {
+    "dsh": ">=0.2.1-rc.3 <0.3.0-0"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "external": [
+        "@deepseek-ai/dsh-client-ui-primitives"
+      ],
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings-general",
+        "@deepseek-ai/dsh-client-ui-workspace"
+      ]
+    }
+  }
+}

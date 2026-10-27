@@ -1,0 +1,1 @@
+MIT © Thunderunruly · [Repository/仓库](https://github.com/Thunderunruly/workspace-settings) · [Issues](https://github.com/Thunderunruly/workspace-settings/issues) · [Releases](https://github.com/Thunderunruly/workspace-settings/releases)
