@@ -695,6 +695,44 @@ export function apply(ctx) {
     return applied
   }
 
+  /**
+   * Re-assert the workspace mode after an external blank-session preset switch.
+   *
+   * The built-in "new session" flow reuses a live blank session and first
+   * switches its preset back to the requested/default one. That records an
+   * `agent-preset/selected` event and does not re-run `agent/created`, so the
+   * workspace value would otherwise be lost for every reused blank Session.
+   * An explicit user choice in the session (not the default and not our own
+   * last applied value) is still respected.
+   */
+  async function reapplyPresetOnSelection(sessionId, selectedPreset) {
+    try {
+      const session = ctx.get('sessions')?.get?.(sessionId)
+      if (session === undefined) return
+      const header = session.header
+      if (header.origin === 'subagent' || header.parentSession !== undefined) return
+      if (!isBlank(session)) return
+      const presets = ctx.get('agentPresets')
+      const agent = ctx.get('agents')?.get?.(sessionId)
+      if (presets === undefined || agent === undefined) return
+      const data = await store()
+      const entry = entryForCwd(header.cwd)
+      if (entry === undefined) return
+      const catalog = await presetCatalog(true)
+      const target = entry.preset ?? catalog.defaultPreset
+      if (typeof target !== 'string' || target === '') return
+      if (selectedPreset === target) return
+      const last = data.sessions[sessionId]
+      if (!mayApplyValue(selectedPreset, catalog.defaultPreset, last?.preset)) return
+      await presets.select(agent, target)
+      rememberApplied(sessionId, { ...(last ?? {}), preset: target })
+    } catch (error) {
+      logger.warn(`workspace-settings: could not re-apply the workspace mode after a preset switch: ${String(error)}`)
+    }
+  }
+
+  ctx.on('agent-preset/selected', (sessionId, agentPreset) => reapplyPresetOnSelection(sessionId, agentPreset))
+
   ctx.on('agent/created', async ({ agent }) => {
     try {
       await applyToAgent(agent, 'created')
@@ -728,6 +766,15 @@ export function apply(ctx) {
   async function dispatch(method, payload) {
     if (method === 'catalog') {
       return await buildCatalog()
+    }
+    if (method === 'apply') {
+      const request = payload !== null && typeof payload === 'object' ? payload : {}
+      const sessionId = stringOrUndefined(request.sessionId)
+      if (sessionId === undefined) throw new ApiError('bad-request', 'sessionId is required')
+      const agent = ctx.get('agents')?.get?.(sessionId)
+      if (agent === undefined) return { applied: false, reason: 'session-not-live' }
+      const applied = await applyToAgent(agent, 'client-active-session')
+      return { applied }
     }
     if (method === 'save') {
       const request = payload !== null && typeof payload === 'object' ? payload : {}
@@ -770,6 +817,7 @@ export function apply(ctx) {
 
   const routes = [
     { method: 'catalog', path: `${API_PREFIX}/catalog` },
+    { method: 'apply', path: `${API_PREFIX}/apply` },
     { method: 'save', path: `${API_PREFIX}/save` },
   ]
   const connection = ctx.get('connection')

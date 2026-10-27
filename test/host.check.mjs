@@ -144,6 +144,11 @@ function makeCtx(state) {
       return [...state.agentStates.keys()].find((agent) => agent.id === id)
     },
   }
+  serviceMap.set('sessions', {
+    get(id) {
+      return [...state.agentStates.keys()].find((agent) => agent.id === id)?.session
+    },
+  })
   const models = [
     {
       provider: 'deepseek',
@@ -317,6 +322,13 @@ test('catalog, save, reset and inheritance', async () => {
   // First-request model override is installed by the blank-agent pass.
   const resolved = await second.emitRequest(async () => ({ provider: 'deepseek', model: 'deepseek-chat' }))
   assert.equal(resolved.reasoningEffort, 'max')
+
+  // The built-in new-session flow reuses a live blank session and resets its
+  // preset to the requested/default one before returning it. The workspace
+  // mode must be re-asserted after that switch.
+  state.agentStates.set(second, { ...state.agentStates.get(second), preset: 'standard' })
+  await ctx.emit('agent-preset/selected', second.id, 'standard')
+  assert.equal(state.agentStates.get(second).preset, 'creative')
 
   // Reset removes the record.
   const resetResponse = await callRoute(ctx, { __method: 'save', workspaceId: 'ws-1', settings: null })

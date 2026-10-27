@@ -1061,6 +1061,73 @@ window.__ModuleLoader__.load({
     const COLLAPSE_TIMINGS = ['completion', 'next-input']
 
     /**
+     * Ask the Host to re-apply the workspace defaults whenever a blank Session
+     * becomes the main view. This covers the built-in "new session" flow, which
+     * reuses a live blank Session and may reset its preset to the requested
+     * default before the workspace listener can re-assert it.
+     */
+    function startActiveSessionApplier(ctx) {
+      const sessions = ctx.get('sessions')
+      const list = sessions?.list
+      if (list === undefined || typeof list.getSnapshot !== 'function' || typeof list.subscribe !== 'function') return () => {}
+      let timer
+      let stopped = false
+      let inFlight = false
+      let queued = false
+      const run = async () => {
+        if (stopped || inFlight) {
+          if (inFlight) queued = true
+          return
+        }
+        let active
+        try {
+          const snapshot = list.getSnapshot()
+          const rows = snapshot?.byId ?? {}
+          active = Object.values(rows).find((row) => row?.blank === true && ((row?.retainedBy?.mainView) ?? 0) > 0)
+        } catch {
+          return
+        }
+        if (active === undefined) return
+        inFlight = true
+        try {
+          await api('apply', { sessionId: active.id })
+        } catch {
+          // the Host half may not be mounted yet; a later list change retries
+        } finally {
+          inFlight = false
+        }
+        if (queued) {
+          queued = false
+          schedule()
+        }
+      }
+      const schedule = () => {
+        if (stopped) return
+        if (timer !== undefined) clearTimeout(timer)
+        timer = setTimeout(() => {
+          timer = undefined
+          void run()
+        }, 250)
+      }
+      let unsubscribe
+      try {
+        unsubscribe = list.subscribe(() => schedule())
+      } catch {
+        unsubscribe = undefined
+      }
+      schedule()
+      return () => {
+        stopped = true
+        if (timer !== undefined) clearTimeout(timer)
+        try {
+          unsubscribe?.()
+        } catch {
+          // already disposed
+        }
+      }
+    }
+
+    /**
      * Work-details presentation is an official Chat preference stored in the
      * profile, not a Session value. While a Session from a workspace with a
      * workspace-level choice is active, switch the official preference to that
@@ -1203,6 +1270,7 @@ window.__ModuleLoader__.load({
           return () => tag.remove()
         }, 'workspace-settings: styles')
 
+        ctx.effect(() => startActiveSessionApplier(ctx), 'workspace-settings: active blank session applier')
         ctx.effect(() => startChatPolicy(ctx), 'workspace-settings: chat presentation policy')
 
         const pageProps = () => ({ t: translate, client, copy: readCopy(ctx) })
