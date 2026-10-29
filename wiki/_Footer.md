@@ -1,1 +1,1 @@
-MIT © Thunderunruly · [Repository/仓库](https://github.com/Thunderunruly/workspace-settings) · [Issues](https://github.com/Thunderunruly/workspace-settings/issues) · [Releases](https://github.com/Thunderunruly/workspace-settings/releases)
+MIT © Thunderunruly · [Repository/仓库](https://github.com/Thunderunruly/workspace-settings) · [npm](https://www.npmjs.com/package/dsh-workspace-settings) · [Issues](https://github.com/Thunderunruly/workspace-settings/issues) · [Releases](https://github.com/Thunderunruly/workspace-settings/releases)

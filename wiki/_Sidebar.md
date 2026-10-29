@@ -23,6 +23,7 @@
 
 ---
 
+- [npm](https://www.npmjs.com/package/dsh-workspace-settings)
 - [GitHub](https://github.com/Thunderunruly/workspace-settings)
 - [Issues](https://github.com/Thunderunruly/workspace-settings/issues)
 - [Releases](https://github.com/Thunderunruly/workspace-settings/releases)

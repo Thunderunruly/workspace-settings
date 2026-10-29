@@ -7,6 +7,7 @@ Each workspace can save its own Agent mode, permission preset, model, reasoning 
 work-details level and collapse timing. Sessions created in a workspace start from its
 values, while choices made inside a session keep priority.
 
+- npm: [`dsh-workspace-settings`](https://www.npmjs.com/package/dsh-workspace-settings)
 - Repository: [Thunderunruly/workspace-settings](https://github.com/Thunderunruly/workspace-settings)
 - Issues: [github.com/Thunderunruly/workspace-settings/issues](https://github.com/Thunderunruly/workspace-settings/issues)
 - Releases: [Releases](https://github.com/Thunderunruly/workspace-settings/releases)
