@@ -1,5 +1,7 @@
 # DSH Workspace Settings
 
+[![npm version](https://img.shields.io/npm/v/dsh-workspace-settings?color=cb3837&logo=npm)](https://www.npmjs.com/package/dsh-workspace-settings)
+[![npm downloads](https://img.shields.io/npm/dm/dsh-workspace-settings)](https://www.npmjs.com/package/dsh-workspace-settings)
 [![GitHub stars](https://img.shields.io/github/stars/Thunderunruly/workspace-settings?style=social)](https://github.com/Thunderunruly/workspace-settings)
 [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.3-4a6cff)](https://github.com/deepseek-ai/deepseek-harness)
@@ -73,9 +75,23 @@ General Settings page. Changes apply immediately; there is no Save/Cancel step.
 
 ## Installation
 
-The package is not published to npm yet. Install it from this repository.
+### From npm (recommended)
 
-### From a local checkout (recommended)
+```sh
+dsh plugin --profile <profile> add dsh-workspace-settings
+```
+
+Install a pinned version or upgrade later:
+
+```sh
+dsh plugin --profile <profile> add dsh-workspace-settings@1.0.1
+dsh plugin --profile <profile> add dsh-workspace-settings@latest
+```
+
+Reload the DSH window once after installation so the client bundle enters the boot graph.
+After that, client-only changes hot-reload in place.
+
+### From a local checkout (development)
 
 ```sh
 git clone https://github.com/Thunderunruly/workspace-settings.git
@@ -92,9 +108,6 @@ Then install the folder into your profile:
   dsh plugin --profile web add file:/absolute/path/to/workspace-settings
   ```
 
-Reload the DSH window once after installation so the client bundle enters the boot graph.
-After that, client-only changes hot-reload in place.
-
 ### Verify
 
 1. The workspace row's `...` menu now contains **Workspace settings** above Rename/Delete.
@@ -103,10 +116,11 @@ After that, client-only changes hot-reload in place.
 
 ### Upgrade / uninstall
 
-- Upgrade: `git pull` in the clone, then reinstall/refresh through the plugin manager and
+- Upgrade from npm: run the `@latest` install command above and reload the window.
+- Upgrade a local checkout: `git pull`, reinstall/refresh through the plugin manager and
   reload the window.
-- Uninstall: remove the bundle in the plugin manager (or remove the linked dependency from
-  the profile). The stored workspace values in
+- Uninstall: remove the bundle through the plugin manager (or remove the dependency from the
+  profile). The stored workspace values in
   `$DSH_HOME/storages/workspace-settings/settings.json` are kept until you delete the file.
 
 ## Usage

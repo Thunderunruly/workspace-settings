@@ -1,6 +1,6 @@
 {
   "name": "dsh-workspace-settings",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "Per-workspace session defaults for DeepSeek Harness: mode (agent preset), permission preset, model, reasoning effort and Chat work-details preferences, saved per workspace and applied to new sessions.",
   "author": "Thunderunruly",

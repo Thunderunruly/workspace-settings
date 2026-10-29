@@ -1,5 +1,7 @@
 # DSH 工作区设置
 
+[![npm version](https://img.shields.io/npm/v/dsh-workspace-settings?color=cb3837&logo=npm)](https://www.npmjs.com/package/dsh-workspace-settings)
+[![npm downloads](https://img.shields.io/npm/dm/dsh-workspace-settings)](https://www.npmjs.com/package/dsh-workspace-settings)
 [![GitHub stars](https://img.shields.io/github/stars/Thunderunruly/workspace-settings?style=social)](https://github.com/Thunderunruly/workspace-settings)
 [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.3-4a6cff)](https://github.com/deepseek-ai/deepseek-harness)
@@ -66,9 +68,22 @@
 
 ## 安装
 
-插件尚未发布到 npm，请从本仓库安装。
+### 从 npm 安装（推荐）
 
-### 从本地目录安装（推荐）
+```sh
+dsh plugin --profile <profile> add dsh-workspace-settings
+```
+
+安装指定版本或升级：
+
+```sh
+dsh plugin --profile <profile> add dsh-workspace-settings@1.0.1
+dsh plugin --profile <profile> add dsh-workspace-settings@latest
+```
+
+安装后重载一次 DSH 窗口，让客户端 bundle 进入启动图；此后客户端改动支持热加载。
+
+### 从本地目录安装（开发）
 
 ```sh
 git clone https://github.com/Thunderunruly/workspace-settings.git
@@ -84,8 +99,6 @@ git clone https://github.com/Thunderunruly/workspace-settings.git
   dsh plugin --profile web add file:/本目录绝对路径
   ```
 
-安装后重载一次 DSH 窗口，让客户端 bundle 进入启动图；此后客户端改动支持热加载。
-
 ### 验证安装
 
 1. 工作区行 `...` 菜单中出现 **工作区设置**，位于重命名 / 删除工作区上方；
@@ -94,8 +107,9 @@ git clone https://github.com/Thunderunruly/workspace-settings.git
 
 ### 升级 / 卸载
 
-- 升级：在克隆目录 `git pull`，然后通过插件管理器重新安装 / 刷新并重载窗口。
-- 卸载：在插件管理器中移除 bundle（或从 profile 删除 linked 依赖）。已保存的工作区配置位于
+- npm 升级：执行上面的 `@latest` 命令并重载窗口。
+- 本地目录升级：在克隆目录 `git pull`，然后通过插件管理器重新安装 / 刷新并重载窗口。
+- 卸载：在插件管理器中移除 bundle（或从 profile 删除依赖）。已保存的工作区配置位于
   `$DSH_HOME/storages/workspace-settings/settings.json`，删除该文件才会清空。
 
 ## 使用

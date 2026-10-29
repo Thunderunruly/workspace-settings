@@ -16,19 +16,19 @@ values, while choices made inside a session keep priority.
 ## Quick start
 
 ```sh
-git clone https://github.com/Thunderunruly/workspace-settings.git
+dsh plugin --profile <profile> add dsh-workspace-settings
 ```
 
-Install the cloned folder through **Settings → Plugins → Add plugin → local bundle** in the
-desktop app (or `dsh plugin --profile web add file:/path/to/workspace-settings` for a CLI
-profile), then reload the DSH window once. Hover a workspace row, click `...` and choose
-**Workspace settings**. See [Installation](Installation) for upgrade and uninstall notes.
+Reload the DSH window once, then hover a workspace row, click `...` and choose **Workspace
+settings**. For a local checkout instead, install the cloned folder through **Settings →
+Plugins → Add plugin → local bundle**. See [Installation](Installation) for upgrade and
+uninstall notes.
 
 ## Documentation
 
 | Page | Content |
 | --- | --- |
-| [Installation](Installation) | Requirements, local install, verify, upgrade, uninstall |
+| [Installation](Installation) | Requirements, npm/local install, verify, upgrade, uninstall |
 | [Usage](Usage) | Entry points, the six defaults, inheritance and in-session overrides |
 | [Configuration](Configuration) | Storage locations, inherit-global, reset, profiles |
 | [Architecture](Architecture) | Host routes, session inheritance, client slots, Chat policy watcher |

@@ -12,9 +12,23 @@
   `@deepseek-ai/dsh-client-ui-primitives` from the host module table; nothing is bundled.
 - `node` is only needed for the offline checks.
 
-The package is not published to npm yet. Install from this repository.
+## From npm (recommended)
 
-## From a local checkout
+```sh
+dsh plugin --profile <profile> add dsh-workspace-settings
+```
+
+Install a pinned version or upgrade later:
+
+```sh
+dsh plugin --profile <profile> add dsh-workspace-settings@1.0.1
+dsh plugin --profile <profile> add dsh-workspace-settings@latest
+```
+
+Then reload the DSH window once so the client bundle enters the boot graph. Later client-only
+changes hot-reload in place.
+
+## From a local checkout (development)
 
 ```sh
 git clone https://github.com/Thunderunruly/workspace-settings.git
@@ -48,13 +62,14 @@ See [Usage](Usage) for the first configuration.
 
 ## Upgrade
 
-1. `git pull` in the clone.
-2. Reinstall / refresh the bundle through the plugin manager.
-3. Reload the DSH window. Host-side changes require the plugin row to be re-enabled.
+- **npm**: run the `@latest` install command above and reload the window.
+- **Local checkout**: `git pull` in the clone, reinstall / refresh the bundle through the
+  plugin manager, and reload the window. Host-side changes require the plugin row to be
+  re-enabled.
 
 ## Uninstall
 
-Remove the bundle in the plugin manager, or remove the linked dependency from the profile.
+Remove the bundle in the plugin manager, or remove the dependency from the profile.
 Client slots, styles and the settings page disappear on reload. The stored values in
 `$DSH_HOME/storages/workspace-settings/settings.json` are kept until you delete that file.
 

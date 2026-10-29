@@ -8,6 +8,24 @@ Semantic versioning. The plugin targets DSH `0.2.1-rc.3` and declares
 `engines.dsh = ">=0.2.1-rc.3 <0.3.0-0"`. Breaking DSH integrations may require a matching
 plugin release even when the plugin's own behavior is unchanged.
 
+## v1.0.1 — 2026-10-29
+
+First npm release.
+
+### Fixes
+
+- The workspace mode is re-asserted when the built-in new-session flow reuses a live blank
+  Session and resets its preset to the requested/default one.
+- Any activation of a blank Session now re-applies the stored defaults through the new
+  `POST /api/workspace-settings/apply` route, covering live reuse and restored blanks.
+
+### Packaging
+
+- Published on npm as [`dsh-workspace-settings`](https://www.npmjs.com/package/dsh-workspace-settings).
+- Added a 180×180 storefront icon for plugin listings.
+- Install with `dsh plugin --profile <profile> add dsh-workspace-settings` and reload the
+  window once.
+
 ## v1.0.0 — 2026-10-27
 
 First public release.
