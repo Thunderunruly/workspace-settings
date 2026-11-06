@@ -34,6 +34,23 @@ window.__ModuleLoader__.load({
     } catch (error) {
       console.warn(`[workspace-settings] ${PRIMITIVES_ID} is unavailable, so the plugin will not mount:`, error)
     }
+    let ReactDOM = null
+    try {
+      ReactDOM = require('react-dom')
+    } catch {
+      // The host bundle always provides react-dom for portal-based menus; the
+      // dialog still works with an in-place menu if a composition omits it.
+    }
+    /**
+     * Render the host's own model-label decorators (the 1017 badge, Qoder
+     * promotion/free chips, ...) from the `conversation.input.model.label`
+     * slot. The native picker renders these through its slot face; we do not
+     * own that face, so read the registered components and render the same
+     * components with the same owner props. Qoder's decorator chains to the
+     * other label entries itself, so choosing it when present keeps their
+     * order/fallback semantics.
+     */
+    let renderModelLabelContent = null
     const missingPrimitives = P === null
       ? REQUIRED_PRIMITIVES
       : REQUIRED_PRIMITIVES.filter((name) => P[name] === null || P[name] === undefined)
@@ -252,13 +269,13 @@ window.__ModuleLoader__.load({
 .wsx-selector{border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);height:36px;font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;border:none;align-items:center;gap:12px;padding:0 14px;font-size:14px;line-height:22px;display:inline-flex;max-width:280px;flex:none}
 .wsx-selector:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}
 .wsx-selector:disabled{color:var(--dsw-alias-label-dimmed);background:var(--dsw-alias-fill-tsp-secondary);cursor:default}
-.wsx-selector-label{text-overflow:ellipsis;white-space:nowrap;min-width:0;overflow:hidden}
+.wsx-selector-label{display:flex;align-items:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* Searchable provider-grouped model menu, following the host's native
    ModelSelect geometry (search row, sticky provider headers, 34px rows). */
 .wsx-model-popover{position:fixed;z-index:2147483001;display:flex;flex-direction:column;padding:4px;overflow:hidden;pointer-events:auto;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-md);box-shadow:var(--dsw-elevation-prominent,0 8px 24px rgba(0,0,0,.28));max-height:min(360px,calc(100vh - 96px))}
+.wsx-model-popover.is-native{background:transparent;border:none;border-radius:var(--dsw-radius-lg);box-shadow:var(--dsw-elevation-prominent)}
 .wsx-model-search-row{flex:none;position:relative;margin:2px 0 3px;padding:0 4px}
 .wsx-model-search{box-sizing:border-box;width:100%;height:30px;padding:5px 28px 5px 7px;color:var(--dsw-alias-label-primary);background:transparent;border:none;border-radius:var(--dsw-radius-md);outline:none;font:inherit;font-size:13px;line-height:18px}
-.wsx-model-search:hover,.wsx-model-search:focus{background:var(--dsw-alias-interactive-bg-hover)}
 .wsx-model-search::placeholder{color:var(--dsw-alias-label-caption)}
 .wsx-model-search-clear{position:absolute;top:50%;right:8px;width:22px;height:22px;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;padding:0;color:var(--dsw-alias-label-secondary);background:transparent;border:none;border-radius:50%;cursor:pointer;font-size:15px;line-height:1}
 .wsx-model-search-clear:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
@@ -266,7 +283,8 @@ window.__ModuleLoader__.load({
 .wsx-model-group-label{position:sticky;top:0;z-index:1;padding:6px 8px 4px;color:var(--dsw-alias-label-tertiary);background:var(--dsw-alias-bg-overlay);font-size:12px;line-height:18px}
 .wsx-model-option{box-sizing:border-box;width:100%;min-height:34px;display:flex;align-items:center;gap:8px;padding:5px 7px;border:none;border-radius:var(--dsw-radius-md);background:transparent;color:inherit;text-align:left;cursor:pointer;font:inherit;font-size:13px;line-height:18px;outline:none}
 .wsx-model-option:hover,.wsx-model-option:focus-visible,.wsx-model-option.is-active{background:var(--dsw-alias-interactive-bg-hover)}
-.wsx-model-option-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wsx-model-option-label{display:flex;align-items:center;gap:4px;flex:1;min-width:0}
+.wsx-model-option-name{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;line-height:18px}
 .wsx-model-check{flex:0 0 14px;display:grid;place-items:center;width:14px;height:14px;color:var(--dsw-alias-label-primary)}
 .wsx-model-empty{padding:8px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
 .wsx-chevron{flex:none;color:var(--dsw-alias-label-caption)}
@@ -558,6 +576,29 @@ window.__ModuleLoader__.load({
       })).filter((group) => group.models.length > 0)
       const choices = filteredGroups.flatMap((group) => group.models)
       const rowCount = choices.length + (showInherit ? 1 : 0)
+      const MenuSurface = P?.MenuSurface
+      const MenuGroup = P?.MenuGroup
+      const groupOf = (entry) => groups.find((group) => group.id === entry.provider)
+      const renderModelLabel = (group, entry, placement, selectedEntry) => {
+        const provider = { id: group.id, name: providerLabel(t, group) }
+        const model = {
+          id: entry.model,
+          name: entry.name,
+          ...entry.description === undefined ? {} : { description: entry.description },
+        }
+        let decorated = null
+        try {
+          decorated = renderModelLabelContent?.(provider, model, placement, selectedEntry)
+        } catch {
+          decorated = null
+        }
+        return h('span', {
+          key: 'label',
+          className: 'wsx-model-option-label',
+        }, decorated === null
+          ? entry.name
+          : h(SurfaceErrorBoundary, { label: h('span', null, entry.name) }, decorated))
+      }
       const chooseInherit = () => {
         close()
         onChange('')
@@ -620,7 +661,7 @@ window.__ModuleLoader__.load({
 
       let style
       if (anchor !== null) {
-        const width = Math.min(360, window.innerWidth - 24)
+        const width = Math.min(320, window.innerWidth - 24)
         const left = Math.max(8, Math.min(anchor.right - width, window.innerWidth - width - 8))
         const below = window.innerHeight - anchor.bottom - 12
         const above = anchor.top - 12
@@ -648,27 +689,30 @@ window.__ModuleLoader__.load({
         ]))
       }
       for (const group of filteredGroups) {
-        optionRows.push(h('div', { key: group.id }, [
-          h('div', { key: 'label', className: 'wsx-model-group-label' }, providerLabel(t, group)),
-          ...group.models.map((entry) => {
-            const selectedEntry = modelOptionKey(entry) === value
-            const index = choices.indexOf(entry) + (showInherit ? 1 : 0)
-            return h('button', {
-              key: modelOptionKey(entry),
-              type: 'button',
-              role: 'option',
-              'aria-selected': selectedEntry,
-              className: `wsx-model-option${index === activeIndex ? ' is-active' : ''}`,
-              onMouseEnter: () => setActiveIndex(index),
-              onClick: () => choose(entry),
-            }, [
-              h('span', { key: 'name', className: 'wsx-model-option-name' }, entry.name),
-              selectedEntry
-                ? h('span', { key: 'check', className: 'wsx-model-check' }, icon('IconCheckOutlineRegular', { size: 14 }))
-                : null,
-            ])
-          }),
-        ]))
+        const groupRows = group.models.map((entry) => {
+          const selectedEntry = modelOptionKey(entry) === value
+          const index = choices.indexOf(entry) + (showInherit ? 1 : 0)
+          return h('button', {
+            key: modelOptionKey(entry),
+            type: 'button',
+            role: 'option',
+            'aria-selected': selectedEntry,
+            className: `wsx-model-option${index === activeIndex ? ' is-active' : ''}`,
+            onMouseEnter: () => setActiveIndex(index),
+            onClick: () => choose(entry),
+          }, [
+            renderModelLabel(group, entry, 'option', selectedEntry),
+            selectedEntry
+              ? h('span', { key: 'check', className: 'wsx-model-check' }, icon('IconCheckOutlineRegular', { size: 14 }))
+              : null,
+          ])
+        })
+        optionRows.push(MenuGroup === undefined
+          ? h('div', { key: group.id }, [
+            h('div', { key: 'label', className: 'wsx-model-group-label' }, providerLabel(t, group)),
+            ...groupRows,
+          ])
+          : h(MenuGroup, { key: group.id, label: providerLabel(t, group) }, groupRows))
       }
 
       const options = h('div', {
@@ -678,6 +722,52 @@ window.__ModuleLoader__.load({
       }, optionRows.length === 0
         ? h('div', { className: 'wsx-model-empty' }, t('field.noMatchingModels'))
         : optionRows)
+
+      const searchRow = h('div', { key: 'search', className: 'wsx-model-search-row' }, [
+        h('input', {
+          key: 'input',
+          ref: inputRef,
+          className: 'wsx-model-search',
+          type: 'text',
+          value: query,
+          placeholder: t('field.searchModels'),
+          'aria-label': t('field.searchModels'),
+          onChange: (event) => {
+            setQuery(event.target.value)
+            setActiveIndex(0)
+          },
+          onKeyDown: onSearchKeyDown,
+        }),
+        query === '' ? null : h('button', {
+          key: 'clear',
+          type: 'button',
+          className: 'wsx-model-search-clear',
+          'aria-label': t('field.clearSearch'),
+          onClick: () => {
+            setQuery('')
+            setActiveIndex(0)
+            inputRef.current?.focus()
+          },
+        }, '×'),
+      ])
+
+      let menu = null
+      if (open && anchor !== null && style !== undefined) {
+        const surface = MenuSurface === undefined ? 'div' : MenuSurface
+        const content = h(surface, {
+          key: 'menu',
+          ref: menuRef,
+          className: `wsx-model-popover${MenuSurface === undefined ? '' : ' is-native'}`,
+          style,
+          role: 'group',
+          'aria-label': label,
+        }, [searchRow, options])
+        menu = ReactDOM !== null && typeof ReactDOM.createPortal === 'function' && typeof document !== 'undefined'
+          ? ReactDOM.createPortal(content, document.body)
+          : content
+      }
+
+      const selectedGroup = selected === undefined ? undefined : groupOf(selected)
 
       return h(FieldRow, {
         label,
@@ -694,44 +784,12 @@ window.__ModuleLoader__.load({
             'aria-label': label,
             onClick: () => (open ? close() : openMenu()),
           }, [
-            h('span', { key: 'value', className: 'wsx-selector-label' }, selected === undefined ? (placeholder ?? '') : modelOptionLabel(selected)),
+            h('span', { key: 'value', className: 'wsx-selector-label' }, selected === undefined || selectedGroup === undefined
+              ? (placeholder ?? '')
+              : renderModelLabel(selectedGroup, selected, 'trigger', true)),
             icon('IconChevronDownOutlineRegular', { key: 'chevron', className: 'wsx-chevron' }),
           ]),
-          open && anchor !== null ? h('div', {
-            key: 'menu',
-            ref: menuRef,
-            className: 'wsx-model-popover',
-            style,
-          }, [
-            h('div', { key: 'search', className: 'wsx-model-search-row' }, [
-              h('input', {
-                key: 'input',
-                ref: inputRef,
-                className: 'wsx-model-search',
-                type: 'text',
-                value: query,
-                placeholder: t('field.searchModels'),
-                'aria-label': t('field.searchModels'),
-                onChange: (event) => {
-                  setQuery(event.target.value)
-                  setActiveIndex(0)
-                },
-                onKeyDown: onSearchKeyDown,
-              }),
-              query === '' ? null : h('button', {
-                key: 'clear',
-                type: 'button',
-                className: 'wsx-model-search-clear',
-                'aria-label': t('field.clearSearch'),
-                onClick: () => {
-                  setQuery('')
-                  setActiveIndex(0)
-                  inputRef.current?.focus()
-                },
-              }, '×'),
-            ]),
-            options,
-          ]) : null,
+          menu,
         ]),
       })
     }
@@ -1522,6 +1580,32 @@ window.__ModuleLoader__.load({
         const t = ctx.locale.bind(NS)
         const translate = (key, params) => interpolate(t(key, params), params)
         const client = createClientActions(ctx)
+
+        const slotsService = ctx.get('slots')
+        renderModelLabelContent = (provider, model, placement, selected) => {
+          try {
+            const entries = slotsService?.entries?.('conversation.input.model.label') ?? []
+            const usable = entries.filter((entry) => typeof entry.component === 'function')
+            // Qoder's decorator wraps the remaining entries (1017 and other
+            // providers) itself; prefer it so the native composition order is
+            // preserved. Without it the first registered decorator is the
+            // plain native one.
+            const primary = usable.find((entry) => /qoder/iu.test(String(entry.locale ?? ''))) ?? usable[0]
+            if (primary === undefined) return null
+            const labelT = primary.locale === undefined || primary.locale === ''
+              ? undefined
+              : ctx.locale.bind(primary.locale)
+            return h(primary.component, {
+              provider,
+              model,
+              placement,
+              selected,
+              ...labelT === undefined ? {} : { t: labelT },
+            })
+          } catch {
+            return null
+          }
+        }
 
         ctx.effect(() => {
           const tag = document.createElement('style')
