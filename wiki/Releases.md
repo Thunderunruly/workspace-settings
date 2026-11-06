@@ -15,6 +15,8 @@ plugin release even when the plugin's own behavior is unchanged.
 - A workspace model is now recorded as the blank Session's selected model and reasoning
   effort immediately. The composer shows both before the first request instead of keeping
   the global default until the first request header exists.
+- The model field is now a native-style model picker: searchable, provider-grouped with
+  sticky headings, a bounded 360px popover height, 34px rows and a selected-row check.
 - Opening the workspace settings from the workspace menu or the settings page refreshes the
   live model catalog, so each model's own effort options (for example Qoder's per-model
   levels) are offered instead of a stale/global list.

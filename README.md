@@ -70,6 +70,9 @@ and effort are edited in one native dialog; work details and collapse timing fol
   closing the dialog keeps what you picked and only failures are surfaced.
 - **Native chrome** — the menu, modal, selectors and settings rows reuse the host primitives
   and theme tokens, so light/dark switching and future theme changes apply automatically.
+- **Native model picker** — the model field uses a searchable, provider-grouped menu with a
+  bounded height and sticky provider headings, matching the composer's model picker; long
+  third-party catalogs no longer overflow the viewport.
 - **Local and quiet** — settings live in one JSON file under the DSH home; no telemetry and
   no network requests.
 
