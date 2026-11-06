@@ -75,6 +75,11 @@ window.__ModuleLoader__.load({
         'field.modelDefault': '模型默认',
         'field.noEffort': '该模型不支持调整强度',
         'field.chooseModelFirst': '先选择一个模型',
+        'field.searchModels': '搜索模型…',
+        'field.clearSearch': '清除搜索',
+        'field.noMatchingModels': '没有匹配的模型。',
+        'field.providerAccount': 'DeepSeek 账号',
+        'field.providerOfficial': 'DeepSeek',
         'field.transcript': '工作步骤展示',
         'field.transcriptHint': '选择希望看到多少工具调用细节；进入该工作区的会话时生效。',
         'field.collapse': '工作步骤收起时机',
@@ -135,6 +140,11 @@ window.__ModuleLoader__.load({
         'field.modelDefault': 'Model default',
         'field.noEffort': 'This model has no effort control',
         'field.chooseModelFirst': 'Choose a model first',
+        'field.searchModels': 'Search models…',
+        'field.clearSearch': 'Clear search',
+        'field.noMatchingModels': 'No matching models.',
+        'field.providerAccount': 'DeepSeek Account',
+        'field.providerOfficial': 'DeepSeek',
         'field.transcript': 'Work details',
         'field.transcriptHint': 'Choose how much detail to show for tool calls; applies while a session in this workspace is active.',
         'field.collapse': 'Collapse work details',
@@ -243,6 +253,22 @@ window.__ModuleLoader__.load({
 .wsx-selector:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}
 .wsx-selector:disabled{color:var(--dsw-alias-label-dimmed);background:var(--dsw-alias-fill-tsp-secondary);cursor:default}
 .wsx-selector-label{text-overflow:ellipsis;white-space:nowrap;min-width:0;overflow:hidden}
+/* Searchable provider-grouped model menu, following the host's native
+   ModelSelect geometry (search row, sticky provider headers, 34px rows). */
+.wsx-model-popover{position:fixed;z-index:2147483001;display:flex;flex-direction:column;padding:4px;overflow:hidden;pointer-events:auto;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-md);box-shadow:var(--dsw-elevation-prominent,0 8px 24px rgba(0,0,0,.28));max-height:min(360px,calc(100vh - 96px))}
+.wsx-model-search-row{flex:none;position:relative;margin:2px 0 3px;padding:0 4px}
+.wsx-model-search{box-sizing:border-box;width:100%;height:30px;padding:5px 28px 5px 7px;color:var(--dsw-alias-label-primary);background:transparent;border:none;border-radius:var(--dsw-radius-md);outline:none;font:inherit;font-size:13px;line-height:18px}
+.wsx-model-search:hover,.wsx-model-search:focus{background:var(--dsw-alias-interactive-bg-hover)}
+.wsx-model-search::placeholder{color:var(--dsw-alias-label-caption)}
+.wsx-model-search-clear{position:absolute;top:50%;right:8px;width:22px;height:22px;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;padding:0;color:var(--dsw-alias-label-secondary);background:transparent;border:none;border-radius:50%;cursor:pointer;font-size:15px;line-height:1}
+.wsx-model-search-clear:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+.wsx-model-groups{flex:1 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;scrollbar-width:thin}
+.wsx-model-group-label{position:sticky;top:0;z-index:1;padding:6px 8px 4px;color:var(--dsw-alias-label-tertiary);background:var(--dsw-alias-bg-overlay);font-size:12px;line-height:18px}
+.wsx-model-option{box-sizing:border-box;width:100%;min-height:34px;display:flex;align-items:center;gap:8px;padding:5px 7px;border:none;border-radius:var(--dsw-radius-md);background:transparent;color:inherit;text-align:left;cursor:pointer;font:inherit;font-size:13px;line-height:18px;outline:none}
+.wsx-model-option:hover,.wsx-model-option:focus-visible,.wsx-model-option.is-active{background:var(--dsw-alias-interactive-bg-hover)}
+.wsx-model-option-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wsx-model-check{flex:0 0 14px;display:grid;place-items:center;width:14px;height:14px;color:var(--dsw-alias-label-primary)}
+.wsx-model-empty{padding:8px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
 .wsx-chevron{flex:none;color:var(--dsw-alias-label-caption)}
 .wsx-dialog{width:min(620px,calc(100vw - 48px));max-width:min(620px,calc(100vw - 48px))}
 .wsx-empty{padding:28px 0;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px;display:flex;flex-direction:column;align-items:flex-start;gap:12px}
@@ -473,8 +499,244 @@ window.__ModuleLoader__.load({
       })
     }
 
-    function ModalFooter({ onCancel, cancelLabel, primary, primaryLabel, busy, reset, resetLabel }) {
-      return h(React.Fragment, null, [
+    const MODEL_PROVIDER_RANK = { 'deepseek-account': 0, 'deepseek-official': 1 }
+
+    function modelOptionKey(entry) {
+      return `${entry.provider}\u0000${entry.model}`
+    }
+
+    function modelOptionLabel(entry) {
+      return entry.providerName === undefined || entry.providerName === entry.name
+        ? entry.name
+        : `${entry.providerName} / ${entry.name}`
+    }
+
+    function providerLabel(t, group) {
+      if (group.id === 'deepseek-account') return t('field.providerAccount')
+      if (group.id === 'deepseek-official') return t('field.providerOfficial')
+      return group.name ?? group.id
+    }
+
+    function groupModelEntries(models) {
+      const groups = new Map()
+      for (const entry of models ?? []) {
+        const id = entry.provider
+        if (!groups.has(id)) groups.set(id, { id, name: entry.providerName ?? id, models: [] })
+        groups.get(id).models.push(entry)
+      }
+      return [...groups.values()].sort((left, right) => (
+        (MODEL_PROVIDER_RANK[left.id] ?? 2) - (MODEL_PROVIDER_RANK[right.id] ?? 2)
+      ))
+    }
+
+    /**
+     * Searchable, provider-grouped model menu modelled on the host's native
+     * ModelSelect: a 34px trigger, a search row above a scrollable grouped
+     * list, sticky provider headings and a check on the selected row. Using
+     * a fixed-height popover keeps long third-party catalogs from growing
+     * past the viewport.
+     */
+    function ModelSelect({ t, label, hint, value, models, inheritLabel, onChange, placeholder }) {
+      const [open, setOpen] = React.useState(false)
+      const [query, setQuery] = React.useState('')
+      const [anchor, setAnchor] = React.useState(null)
+      const [activeIndex, setActiveIndex] = React.useState(0)
+      const triggerRef = React.useRef(null)
+      const menuRef = React.useRef(null)
+      const inputRef = React.useRef(null)
+      const selected = (models ?? []).find((entry) => modelOptionKey(entry) === value)
+      const normalizedQuery = query.trim().toLowerCase()
+      const showInherit = normalizedQuery === '' && typeof inheritLabel === 'string'
+      const groups = groupModelEntries(models)
+      const filteredGroups = groups.map((group) => ({
+        ...group,
+        models: normalizedQuery === ''
+          ? group.models
+          : group.models.filter((entry) => (
+            `${group.name} ${entry.name} ${entry.model}`.toLowerCase().includes(normalizedQuery)
+          )),
+      })).filter((group) => group.models.length > 0)
+      const choices = filteredGroups.flatMap((group) => group.models)
+      const rowCount = choices.length + (showInherit ? 1 : 0)
+      const chooseInherit = () => {
+        close()
+        onChange('')
+      }
+      const activeEntry = choices[activeIndex - (showInherit ? 1 : 0)]
+
+      const close = React.useCallback(() => setOpen(false), [])
+
+      const openMenu = () => {
+        if (triggerRef.current === null) return
+        setAnchor(triggerRef.current.getBoundingClientRect())
+        setQuery('')
+        const selectedIndex = (models ?? []).findIndex((entry) => modelOptionKey(entry) === value)
+        setActiveIndex(selectedIndex >= 0 ? selectedIndex + (typeof inheritLabel === 'string' ? 1 : 0) : 0)
+        setOpen(true)
+      }
+
+      React.useEffect(() => {
+        if (!open) return undefined
+        const frame = requestAnimationFrame(() => inputRef.current?.focus())
+        const onPointerDown = (event) => {
+          if (menuRef.current?.contains(event.target) || triggerRef.current?.contains(event.target)) return
+          close()
+        }
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') return
+          event.preventDefault()
+          event.stopPropagation()
+          close()
+          triggerRef.current?.focus()
+        }
+        document.addEventListener('pointerdown', onPointerDown, true)
+        document.addEventListener('keydown', onKeyDown, true)
+        return () => {
+          cancelAnimationFrame(frame)
+          document.removeEventListener('pointerdown', onPointerDown, true)
+          document.removeEventListener('keydown', onKeyDown, true)
+        }
+      }, [open, close])
+
+      const choose = (entry) => {
+        close()
+        onChange(modelOptionKey(entry))
+      }
+
+      const onSearchKeyDown = (event) => {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          event.preventDefault()
+          if (rowCount === 0) return
+          const delta = event.key === 'ArrowDown' ? 1 : -1
+          setActiveIndex((index) => (index + delta + rowCount) % rowCount)
+          return
+        }
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          if (showInherit && activeIndex === 0) chooseInherit()
+          else if (activeEntry !== undefined) choose(activeEntry)
+        }
+      }
+
+      let style
+      if (anchor !== null) {
+        const width = Math.min(360, window.innerWidth - 24)
+        const left = Math.max(8, Math.min(anchor.right - width, window.innerWidth - width - 8))
+        const below = window.innerHeight - anchor.bottom - 12
+        const above = anchor.top - 12
+        const openUp = below < 260 && above > below
+        const maxHeight = Math.max(160, Math.min(360, openUp ? above : below))
+        const top = openUp ? Math.max(8, anchor.top - maxHeight - 4) : anchor.bottom + 4
+        style = { width: `${width}px`, left: `${left}px`, top: `${top}px`, maxHeight: `${maxHeight}px` }
+      }
+
+      const optionRows = []
+      if (showInherit) {
+        optionRows.push(h('button', {
+          key: '__inherit__',
+          type: 'button',
+          role: 'option',
+          'aria-selected': value === '',
+          className: `wsx-model-option${activeIndex === 0 ? ' is-active' : ''}`,
+          onMouseEnter: () => setActiveIndex(0),
+          onClick: chooseInherit,
+        }, [
+          h('span', { key: 'name', className: 'wsx-model-option-name' }, inheritLabel),
+          value === ''
+            ? h('span', { key: 'check', className: 'wsx-model-check' }, icon('IconCheckOutlineRegular', { size: 14 }))
+            : null,
+        ]))
+      }
+      for (const group of filteredGroups) {
+        optionRows.push(h('div', { key: group.id }, [
+          h('div', { key: 'label', className: 'wsx-model-group-label' }, providerLabel(t, group)),
+          ...group.models.map((entry) => {
+            const selectedEntry = modelOptionKey(entry) === value
+            const index = choices.indexOf(entry) + (showInherit ? 1 : 0)
+            return h('button', {
+              key: modelOptionKey(entry),
+              type: 'button',
+              role: 'option',
+              'aria-selected': selectedEntry,
+              className: `wsx-model-option${index === activeIndex ? ' is-active' : ''}`,
+              onMouseEnter: () => setActiveIndex(index),
+              onClick: () => choose(entry),
+            }, [
+              h('span', { key: 'name', className: 'wsx-model-option-name' }, entry.name),
+              selectedEntry
+                ? h('span', { key: 'check', className: 'wsx-model-check' }, icon('IconCheckOutlineRegular', { size: 14 }))
+                : null,
+            ])
+          }),
+        ]))
+      }
+
+      const options = h('div', {
+        className: 'wsx-model-groups',
+        role: 'listbox',
+        'aria-label': label,
+      }, optionRows.length === 0
+        ? h('div', { className: 'wsx-model-empty' }, t('field.noMatchingModels'))
+        : optionRows)
+
+      return h(FieldRow, {
+        label,
+        hint,
+        control: h(React.Fragment, null, [
+          h('button', {
+            key: 'trigger',
+            ref: triggerRef,
+            type: 'button',
+            className: 'wsx-selector',
+            disabled: (models ?? []).length === 0,
+            'aria-haspopup': 'listbox',
+            'aria-expanded': open,
+            'aria-label': label,
+            onClick: () => (open ? close() : openMenu()),
+          }, [
+            h('span', { key: 'value', className: 'wsx-selector-label' }, selected === undefined ? (placeholder ?? '') : modelOptionLabel(selected)),
+            icon('IconChevronDownOutlineRegular', { key: 'chevron', className: 'wsx-chevron' }),
+          ]),
+          open && anchor !== null ? h('div', {
+            key: 'menu',
+            ref: menuRef,
+            className: 'wsx-model-popover',
+            style,
+          }, [
+            h('div', { key: 'search', className: 'wsx-model-search-row' }, [
+              h('input', {
+                key: 'input',
+                ref: inputRef,
+                className: 'wsx-model-search',
+                type: 'text',
+                value: query,
+                placeholder: t('field.searchModels'),
+                'aria-label': t('field.searchModels'),
+                onChange: (event) => {
+                  setQuery(event.target.value)
+                  setActiveIndex(0)
+                },
+                onKeyDown: onSearchKeyDown,
+              }),
+              query === '' ? null : h('button', {
+                key: 'clear',
+                type: 'button',
+                className: 'wsx-model-search-clear',
+                'aria-label': t('field.clearSearch'),
+                onClick: () => {
+                  setQuery('')
+                  setActiveIndex(0)
+                  inputRef.current?.focus()
+                },
+              }, '×'),
+            ]),
+            options,
+          ]) : null,
+        ]),
+      })
+    }
+
+    function ModalFooter({ onCancel, cancelLabel, primary, primaryLabel, busy, reset, resetLabel }) {      return h(React.Fragment, null, [
         reset === undefined ? null : h(P.Button, {
           key: 'reset',
           variant: 'ghost',
@@ -599,13 +861,7 @@ window.__ModuleLoader__.load({
         label: collapseLabel(copy, value),
       }))]
 
-      const modelSelectOptions = [{
-        value: '',
-        label: `${t('field.inheritGlobal')}${catalog.defaultModel ? `（${modelName(catalog, catalog.defaultModel)}）` : ''}`,
-      }, ...modelOptions.map((entry) => ({
-        value: `${entry.provider}\u0000${entry.model}`,
-        label: entry.providerName === entry.name ? entry.name : `${entry.providerName} / ${entry.name}`,
-      }))]
+      const inheritModelLabel = `${t('field.inheritGlobal')}${catalog.defaultModel ? `（${modelName(catalog, catalog.defaultModel)}）` : ''}`
 
       const effortOptions = selectedModel === undefined
         ? [{ value: '', label: t('field.chooseModelFirst') }]
@@ -643,15 +899,15 @@ window.__ModuleLoader__.load({
           placeholder: t('field.inheritGlobal'),
           onChange: (value) => update({ permission: value }),
         }),
-        h(MenuSelect, {
+        h(ModelSelect, {
           key: 'model',
           t,
           label: t('field.model'),
           hint: t('field.modelHint'),
           value: form.modelKey,
-          options: modelSelectOptions,
-          disabled: false,
-          placeholder: t('field.inheritGlobal'),
+          models: modelOptions,
+          inheritLabel: inheritModelLabel,
+          placeholder: inheritModelLabel,
           onChange: (value) => {
             const nextModel = value === ''
               ? undefined
