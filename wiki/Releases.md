@@ -12,9 +12,12 @@ plugin release even when the plugin's own behavior is unchanged.
 
 ### Fixes
 
-- A workspace model is now recorded as the blank Session's selected model immediately. The
-  composer shows the workspace model before the first request instead of keeping the global
-  default until the first request header exists.
+- A workspace model is now recorded as the blank Session's selected model and reasoning
+  effort immediately. The composer shows both before the first request instead of keeping
+  the global default until the first request header exists.
+- Opening the workspace settings from the workspace menu or the settings page refreshes the
+  live model catalog, so each model's own effort options (for example Qoder's per-model
+  levels) are offered instead of a stale/global list.
 - The model selection sync respects an explicit in-session pick and refreshes the live model
   catalog before applying a provider/model that the current catalog does not list.
 

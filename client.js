@@ -836,7 +836,10 @@ window.__ModuleLoader__.load({
                   h(P.Button, {
                     key: 'edit',
                     variant: 'outline',
-                    onClick: () => setEditing(workspace),
+                    onClick: () => {
+                      void reload()
+                      setEditing(workspace)
+                    },
                   }, t('page.edit')),
                 ]))),
         editing === null || catalog === null ? null : h(WorkspaceSettingsDialog, {
@@ -901,7 +904,10 @@ window.__ModuleLoader__.load({
 
       const openMenu = React.useCallback((workspaceId, rect) => {
         setMenu({ workspaceId, rect })
-        if (catalogRef.current === null) void loadCatalog()
+        // Provider catalogs (for example a third-party adapter's per-model
+        // reasoning efforts) can change after the page first loaded. Refresh
+        // on every open so the dialog's effort options match the live model.
+        void loadCatalog()
       }, [loadCatalog])
 
       React.useEffect(() => {
