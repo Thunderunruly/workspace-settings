@@ -224,16 +224,22 @@ window.__ModuleLoader__.load({
         collapse: { completion: 'On completion', 'next-input': 'On next message' },
       },
     }
-    const EN_PERMISSION_NAMES = LOCALE_COPY.en.permissions
 
     function displayTitleCase(name) {
       if (typeof name !== 'string' || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name)) return name
       return name.split('-').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
     }
 
+    const BUILTIN_PRESET_IDS = new Set(['standard', 'ptc', 'minimal', 'cordis'])
+
     function displayPreset(catalog, id, copy) {
       const preset = catalog?.presets?.find((entry) => entry.id === id)
       const builtin = copy?.presets?.[id]
+      // The shipped presets are product copy owned by ui-agent-preset; the
+      // Host roster serializes their Chinese canonical name even when the UI
+      // locale is English. Built-ins therefore always use the active locale's
+      // product copy; custom presets keep the name their author gave them.
+      if (builtin !== undefined && BUILTIN_PRESET_IDS.has(id)) return builtin
       if (builtin !== undefined && (preset?.name === undefined || preset.name === id || preset.name === '')) return builtin
       return preset?.name ?? builtin ?? id
     }
@@ -241,7 +247,7 @@ window.__ModuleLoader__.load({
     function displayPermission(catalog, value, copy) {
       const option = catalog?.permissions?.find((entry) => entry.value === value)
       const builtin = copy?.permissions?.[value]
-      if (builtin !== undefined && (option?.name === undefined || option.name === value || option.name === EN_PERMISSION_NAMES[value])) return builtin
+      if (builtin !== undefined) return builtin
       return displayTitleCase(option?.name ?? value)
     }
 
@@ -1369,7 +1375,8 @@ window.__ModuleLoader__.load({
       let active = 'zh'
       try {
         const snapshot = ctx.locale.getSnapshot?.()
-        active = snapshot?.active ?? snapshot?.id ?? 'zh'
+        const raw = snapshot?.active ?? snapshot?.id ?? snapshot?.locale ?? snapshot?.language ?? 'zh'
+        active = String(raw).toLowerCase().split(/[-_]/u)[0]
       } catch {
         active = 'zh'
       }
