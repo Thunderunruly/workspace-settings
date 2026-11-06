@@ -46,8 +46,9 @@
   | 工作步骤展示 | 简洁 / 标准 / 详细 / 完全展开，或跟随全局 |
   | 工作步骤收起时机 | 回答结束后 / 下次有新消息时，或跟随全局 |
 
-- **自动继承**：工作区内新建或复用的空白会话会收到保存的模式、权限预设与模型；会话内的
-  显式修改仍然优先——插件只会替换“看起来仍来自全局默认或上次工作区设置”的值。
+- **自动继承**：工作区内新建或复用的空白会话会收到保存的模式、权限预设与模型。工作区模型会
+  立即写为该会话已选中的模型，首个消息之前输入区就显示工作区模型，而不是继续显示全局默认；
+  会话内的显式修改仍然优先——插件只会替换“看起来仍来自全局默认或上次工作区设置”的值。
 - **官方文案**：内置模式与权限显示为 **标准模式 / PTC 模式 / 极简模式 / 创造模式**、
   **仅可查看 / 工作区内修改 / 完全权限 / 自动审查**，不会显示 `standard`、
   `workspace-write` 这类机器键名。
@@ -77,7 +78,7 @@ dsh plugin --profile <profile> add dsh-workspace-settings
 安装指定版本或升级：
 
 ```sh
-dsh plugin --profile <profile> add dsh-workspace-settings@1.0.1
+dsh plugin --profile <profile> add dsh-workspace-settings@1.0.2
 dsh plugin --profile <profile> add dsh-workspace-settings@latest
 ```
 

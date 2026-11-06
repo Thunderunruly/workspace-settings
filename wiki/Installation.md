@@ -21,7 +21,7 @@ dsh plugin --profile <profile> add dsh-workspace-settings
 Install a pinned version or upgrade later:
 
 ```sh
-dsh plugin --profile <profile> add dsh-workspace-settings@1.0.1
+dsh plugin --profile <profile> add dsh-workspace-settings@1.0.2
 dsh plugin --profile <profile> add dsh-workspace-settings@latest
 ```
 

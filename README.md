@@ -51,8 +51,10 @@ General Settings page. Changes apply immediately; there is no Save/Cancel step.
   | Collapse timing | On completion / On next message, or the global value |
 
 - **Automatic inheritance** — a new or reused blank session in the workspace receives the
-  stored mode, permission preset and model. In-session overrides still win: the plugin only
-  replaces values that still look global-default- or workspace-derived.
+  stored mode, permission preset and model. The workspace model is recorded as the session's
+  selected model immediately, so the composer shows it before the first message instead of
+  keeping the global default. In-session overrides still win: the plugin only replaces values
+  that still look global-default- or workspace-derived.
 - **Official labels** — built-in presets and permissions render as **Standard mode / PTC mode
   / Minimal mode / Creator mode** and **Read Only / Workspace Write / Full access / Auto
   review**, never as machine keys such as `standard` or `workspace-write`.
@@ -84,7 +86,7 @@ dsh plugin --profile <profile> add dsh-workspace-settings
 Install a pinned version or upgrade later:
 
 ```sh
-dsh plugin --profile <profile> add dsh-workspace-settings@1.0.1
+dsh plugin --profile <profile> add dsh-workspace-settings@1.0.2
 dsh plugin --profile <profile> add dsh-workspace-settings@latest
 ```
 

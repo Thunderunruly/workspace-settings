@@ -30,6 +30,10 @@ function fakeAgent(state, { cwd = workspace.path, preset = 'standard', permissio
     header: { version: 999, id: sessionId, createdAt: 1, isSeeded: false, cwd },
     requestHeader: () => undefined,
     ownEvents: () => [],
+    append(type, data) {
+      if (type === 'model/selection') state.modelSelections.set(sessionId, data)
+      return 0
+    },
   }
   const listeners = new Map()
   const agent = {
@@ -65,6 +69,7 @@ function fakeAgent(state, { cwd = workspace.path, preset = 'standard', permissio
 }
 
 function makeCtx(state) {
+  state.modelSelections ??= new Map()
   const handlers = new Map()
   const serviceMap = new Map()
   const routes = []
@@ -183,7 +188,10 @@ function makeCtx(state) {
       const values = state.agentStates.get(agent) ?? {}
       if (key === 'agentPreset') return values.preset
       if (key === 'turnBoundary') return { openTurnStartSeq: null, lastTurn: 0 }
-      if (key === 'modelSelection') return { lastUsed: null, pending: values.modelPending ?? null }
+      if (key === 'modelSelection') return {
+        lastUsed: null,
+        pending: state.modelSelections.get(session.id) ?? null,
+      }
       return undefined
     },
   })
@@ -192,9 +200,8 @@ function makeCtx(state) {
 }
 
 function makeRequest(payload) {
-  const url = payload?.__method === 'save'
-    ? '/api/workspace-settings/save'
-    : '/api/workspace-settings/catalog'
+  const method = payload?.__method ?? 'catalog'
+  const url = `/api/workspace-settings/${method}`
   const body = JSON.stringify(payload ?? {})
   return {
     method: 'POST',
@@ -309,6 +316,11 @@ test('catalog, save, reset and inheritance', async () => {
   assert.equal(saveResponse.body.value.applied, 1)
   assert.equal(state.agentStates.get(blank).preset, 'creative')
   assert.equal(state.agentStates.get(blank).permission, 'danger-full-access')
+  assert.deepEqual(state.modelSelections.get(blank.id), {
+    provider: 'deepseek',
+    model: 'deepseek-chat',
+    reasoningEffort: 'max',
+  })
 
   const stored = JSON.parse(await readFile(join(home, 'storages', 'workspace-settings', 'settings.json'), 'utf8'))
   assert.equal(Object.keys(stored.workspaces).length, 1)
@@ -318,10 +330,21 @@ test('catalog, save, reset and inheritance', async () => {
   await ctx.emit('agent/created', { agent: second })
   assert.equal(state.agentStates.get(second).preset, 'creative')
   assert.equal(state.agentStates.get(second).permission, 'danger-full-access')
+  assert.deepEqual(state.modelSelections.get(second.id), {
+    provider: 'deepseek',
+    model: 'deepseek-chat',
+    reasoningEffort: 'max',
+  })
 
   // First-request model override is installed by the blank-agent pass.
   const resolved = await second.emitRequest(async () => ({ provider: 'deepseek', model: 'deepseek-chat' }))
   assert.equal(resolved.reasoningEffort, 'max')
+
+  // An explicit in-session model pick wins over the workspace model.
+  state.modelSelections.set(second.id, { provider: 'other', model: 'other-model' })
+  const applyResponse = await callRoute(ctx, { __method: 'apply', sessionId: second.id })
+  assert.equal(applyResponse.status, 200, JSON.stringify(applyResponse.body))
+  assert.deepEqual(state.modelSelections.get(second.id), { provider: 'other', model: 'other-model' })
 
   // The built-in new-session flow reuses a live blank session and resets its
   // preset to the requested/default one before returning it. The workspace

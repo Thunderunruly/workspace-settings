@@ -531,6 +531,67 @@ export function apply(ctx) {
     }
   }
 
+  function sameModelSelection(left, right) {
+    if (left === undefined || left === null || right === undefined || right === null) return false
+    return left.provider === right.provider
+      && left.model === right.model
+      && (left.reasoningEffort ?? undefined) === (right.reasoningEffort ?? undefined)
+  }
+
+  function modelSelectionOf(selection) {
+    return {
+      provider: selection.provider,
+      model: selection.model,
+      ...selection.reasoningEffort === undefined ? {} : { reasoningEffort: selection.reasoningEffort },
+    }
+  }
+
+  /** Whether the live catalog currently knows this provider/model pair. */
+  async function modelIsKnown(selection) {
+    const key = `${selection.provider}\u0000${selection.model}`
+    if (modelIndex.size === 0) {
+      await refreshModelIndex()
+      if (modelIndex.size === 0) return true
+    }
+    if (modelIndex.has(key)) return true
+    await refreshModelIndex()
+    return modelIndex.size === 0 || modelIndex.has(key)
+  }
+
+  /**
+   * Record the workspace model as the blank Session's selected model.
+   *
+   * The official model selector renders `modelSelection.pending ?? lastUsed`.
+   * Without this write a workspace model would only take effect on the first
+   * request (through the request override) and the composer would keep showing
+   * the global default until then, which reads as "the selection did not
+   * switch". The event is the standard `model/selection` intent, so the
+   * selector shows the workspace value immediately and a later explicit pick
+   * by the user still wins.
+   */
+  function syncSessionModelSelection(session, entry, last, modelKnown = true) {
+    const pending = pendingModelOf(session)
+    const desired = entry.model ?? null
+    if (desired !== null) {
+      if (!modelKnown) return { pending, applied: false }
+      const shouldApply = pending === undefined
+        || (last?.model !== undefined && sameModelSelection(pending, last.model) && !sameModelSelection(pending, desired))
+      if (!shouldApply) return { pending, applied: false }
+      const selection = modelSelectionOf(desired)
+      session.append('model/selection', selection)
+      return { pending: selection, applied: true }
+    }
+    if (pending !== undefined && last?.model !== undefined && sameModelSelection(pending, last.model)) {
+      const fallback = ctx.get('agentDefaultModel')?.currentSelection?.()
+      if (fallback !== undefined && fallback !== null && !sameModelSelection(pending, fallback)) {
+        const selection = modelSelectionOf(fallback)
+        session.append('model/selection', selection)
+        return { pending: selection, applied: true }
+      }
+    }
+    return { pending, applied: false }
+  }
+
   /** Model overrides are dynamic: every decision re-reads the workspace entry. */
   function installModelOverride(agent) {
     if (modelOverrides.has(agent.id)) return
@@ -538,14 +599,14 @@ export function apply(ctx) {
     const decide = () => {
       try {
         if (session.requestHeader() !== undefined) return undefined
-        if (pendingModelOf(session) !== undefined) return undefined
         const entry = entryForCwd(session.header.cwd)
         const selected = entry?.model
         if (selected === undefined || selected === null) return undefined
+        const pending = pendingModelOf(session)
+        if (pending !== undefined && !sameModelSelection(pending, selected)) return undefined
         if (modelIndex.size > 0) {
           const efforts = modelIndex.get(`${selected.provider}\u0000${selected.model}`)
-          if (efforts === undefined) return undefined
-          if (selected.reasoningEffort !== undefined && !efforts.has(selected.reasoningEffort)) {
+          if (efforts !== undefined && selected.reasoningEffort !== undefined && !efforts.has(selected.reasoningEffort)) {
             return { provider: selected.provider, model: selected.model }
           }
         }
@@ -662,10 +723,28 @@ export function apply(ctx) {
       }
     }
 
-    /* model + effort: installed as a dynamic first-request override whenever
-       the workspace carries a model, and left installed so later edits apply
-       to this still-blank Session too. */
-    if (entry.model !== null && entry.model !== undefined) installModelOverride(agent)
+    /* model + effort: install the request override and, for a still-blank
+       Session, record the workspace model as its selected model so the
+       composer reflects it immediately. */
+    let appliedModel
+    let modelKnown = true
+    if (entry.model !== null && entry.model !== undefined) {
+      modelKnown = await modelIsKnown(entry.model)
+      if (!modelKnown) {
+        logger.warn(`workspace-settings: workspace model ${entry.model.provider}/${entry.model.model} is not in the live catalog; keeping the session model`)
+      } else installModelOverride(agent)
+    }
+    try {
+      const synced = syncSessionModelSelection(session, entry, last, modelKnown)
+      if (synced.applied) {
+        appliedModel = synced.pending
+        changed = true
+      } else if (synced.pending !== undefined && last?.model !== undefined && sameModelSelection(last.model, synced.pending)) {
+        appliedModel = last.model
+      }
+    } catch (error) {
+      logger.warn(`workspace-settings: could not record the workspace model for session ${session.id}: ${String(error)}`)
+    }
 
     const next = {}
     const presetNow = agentPresetOf(session)
@@ -676,6 +755,7 @@ export function apply(ctx) {
     } catch {
       // permission projection unavailable
     }
+    if (appliedModel !== undefined) next.model = modelSelectionOf(appliedModel)
     last === undefined ? rememberApplied(session.id, next) : rememberApplied(session.id, { ...last, ...next })
     return changed
   }

@@ -8,6 +8,22 @@ Semantic versioning. The plugin targets DSH `0.2.1-rc.3` and declares
 `engines.dsh = ">=0.2.1-rc.3 <0.3.0-0"`. Breaking DSH integrations may require a matching
 plugin release even when the plugin's own behavior is unchanged.
 
+## v1.0.2 — 2026-11-06
+
+### Fixes
+
+- A workspace model is now recorded as the blank Session's selected model immediately. The
+  composer shows the workspace model before the first request instead of keeping the global
+  default until the first request header exists.
+- The model selection sync respects an explicit in-session pick and refreshes the live model
+  catalog before applying a provider/model that the current catalog does not list.
+
+Install:
+
+```sh
+dsh plugin --profile <profile> add dsh-workspace-settings@1.0.2
+```
+
 ## v1.0.1 — 2026-10-29
 
 First npm release.
