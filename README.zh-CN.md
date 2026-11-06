@@ -91,7 +91,7 @@ dsh plugin --profile <profile> add dsh-workspace-settings
 安装指定版本或升级：
 
 ```sh
-dsh plugin --profile <profile> add dsh-workspace-settings@1.0.2
+dsh plugin --profile <profile> add dsh-workspace-settings@1.0.3
 dsh plugin --profile <profile> add dsh-workspace-settings@latest
 ```
 

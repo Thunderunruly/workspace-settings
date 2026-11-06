@@ -8,6 +8,30 @@ Semantic versioning. The plugin targets DSH `0.2.1-rc.3` and declares
 `engines.dsh = ">=0.2.1-rc.3 <0.3.0-0"`. Breaking DSH integrations may require a matching
 plugin release even when the plugin's own behavior is unchanged.
 
+## v1.0.3 — 2026-11-06
+
+First npm release after 1.0.1; it rolls up the 1.0.2 model/effort and native-picker fixes.
+
+### Fixes
+
+- Built-in presets, permission presets, work-details levels and collapse timings are labelled
+  in the active UI locale. The host roster's canonical Chinese preset names no longer leak
+  into an English UI, and the inherit-global parentheses follow the locale too.
+- Removed the redundant explanatory footer from the dialog.
+- A workspace model and its reasoning effort are written into a blank Session immediately and
+  applied to its first request.
+- The workspace model menu uses the host `MenuSurface`/`MenuGroup` and the native
+  `conversation.input.model.label` decorators (1017 and Qoder promotion/free chips), with
+  search, a bounded height and native styling.
+- The live model catalog is refreshed when the settings are opened, so per-model reasoning
+  effort options stay current.
+
+Install:
+
+```sh
+dsh plugin --profile <profile> add dsh-workspace-settings@1.0.3
+```
+
 ## v1.0.2 — 2026-11-06
 
 ### Fixes
@@ -23,11 +47,7 @@ plugin release even when the plugin's own behavior is unchanged.
 - The model selection sync respects an explicit in-session pick and refreshes the live model
   catalog before applying a provider/model that the current catalog does not list.
 
-Install:
-
-```sh
-dsh plugin --profile <profile> add dsh-workspace-settings@1.0.2
-```
+This release was not published to npm; use 1.0.3 or the `v1.0.2` GitHub tag.
 
 ## v1.0.1 — 2026-10-29
 
