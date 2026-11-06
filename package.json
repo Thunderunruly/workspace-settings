@@ -48,6 +48,9 @@
     "LICENSE"
   ],
   "dsh": {
+    "engines": {
+      "dsh": ">=0.2.1-rc.3 <0.3.0-0"
+    },
     "bundle": {
       "patch": "./cordis.patch.yml"
     },

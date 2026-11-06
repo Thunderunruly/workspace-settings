@@ -77,6 +77,8 @@ and effort are edited in one native dialog; work details and collapse timing fol
 
 - **DeepSeek Harness (DSH)** with the Web UI and plugin support. Developed and verified
   against DSH `0.2.1-rc.3` (desktop profile).
+- **Recommended DSH version:** `0.2.1-rc.3`; supported range: `>=0.2.1-rc.3 <0.3.0-0`
+  (declared as `engines.dsh` in `package.json`).
 - The plugin is ESM (`"type": "module"`) and loads `react` plus the host UI primitives from
   the running DSH client; no runtime dependencies are bundled.
 - A Chromium-based DSH Web UI is required (the plugin does not render in CLI-only

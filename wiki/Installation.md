@@ -6,6 +6,8 @@
 
 - **DeepSeek Harness (DSH)** with the Web UI and plugin support. Developed and verified against
   DSH `0.2.1-rc.3`, desktop profile.
+- **Recommended DSH version:** `0.2.1-rc.3`; supported range: `>=0.2.1-rc.3 <0.3.0-0`
+  (declared as `engines.dsh` in `package.json`).
 - A Chromium-based DSH Web UI. The plugin registers client slots, so a CLI-only composition
   will not render it.
 - The bundle is ESM (`"type": "module"`). At runtime it loads `react` and
