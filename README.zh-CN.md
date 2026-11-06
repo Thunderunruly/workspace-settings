@@ -15,8 +15,16 @@
 界面基于 DSH 官方 UI 原语：工作区设置对话框使用宿主的 `Modal` / `Menu` / `Button` /
 `Input`，行结构与内置「通用设置」一致。修改立即生效，没有保存 / 取消步骤。
 
+## 截图
+
+![工作区设置对话框](https://raw.githubusercontent.com/Thunderunruly/workspace-settings/main/docs/screenshots/workspace-settings-dialog.png)
+
+*从工作区行 `...` 菜单打开的工作区设置：模式、权限预设、模型与推理强度在同一个原生对话框里
+编辑，工作步骤展示与收起时机也在这里设置。*
+
 ## 目录
 
+- [截图](#截图)
 - [功能](#功能)
 - [环境要求](#环境要求)
 - [安装](#安装)

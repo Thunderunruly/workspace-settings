@@ -18,8 +18,16 @@ Built on the official DSH UI primitives: the Workspace Settings dialog uses the 
 `Modal` / `Menu` / `Button` / `Input` components and the same row geometry as the built-in
 General Settings page. Changes apply immediately; there is no Save/Cancel step.
 
+## Screenshot
+
+![Workspace settings dialog](https://raw.githubusercontent.com/Thunderunruly/workspace-settings/main/docs/screenshots/workspace-settings-dialog.png)
+
+*Workspace settings opened from a workspace row's `...` menu: mode, permission preset, model
+and effort are edited in one native dialog; work details and collapse timing follow it too.*
+
 ## Table of contents
 
+- [Screenshot](#screenshot)
 - [Features](#features)
 - [Requirements](#requirements)
 - [Installation](#installation)
