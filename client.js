@@ -89,6 +89,7 @@ window.__ModuleLoader__.load({
         'field.effort': '强度',
         'field.effortHint': '所选模型的推理强度；不选模型时跟随全局。',
         'field.inheritGlobal': '跟随全局默认',
+        'field.inheritWithValue': '（{value}）',
         'field.modelDefault': '模型默认',
         'field.noEffort': '该模型不支持调整强度',
         'field.chooseModelFirst': '先选择一个模型',
@@ -97,11 +98,24 @@ window.__ModuleLoader__.load({
         'field.noMatchingModels': '没有匹配的模型。',
         'field.providerAccount': 'DeepSeek 账号',
         'field.providerOfficial': 'DeepSeek',
+        'preset.standard': '标准模式',
+        'preset.ptc': 'PTC 模式',
+        'preset.minimal': '极简模式',
+        'preset.cordis': '创造模式',
+        'permission.read-only': '仅可查看',
+        'permission.workspace-write': '工作区内修改',
+        'permission.danger-full-access': '完全权限',
+        'permission.auto': '自动审查',
+        'transcript.compact': '简洁',
+        'transcript.standard': '标准',
+        'transcript.detailed': '详细',
+        'transcript.verbose': '完全展开',
+        'collapse.completion': '回答结束后',
+        'collapse.next-input': '下次有新消息时',
         'field.transcript': '工作步骤展示',
         'field.transcriptHint': '选择希望看到多少工具调用细节；进入该工作区的会话时生效。',
         'field.collapse': '工作步骤收起时机',
         'field.collapseHint': '选择何时自动收起工作步骤；进入该工作区的会话时生效。',
-        'chat.hint': '这两项沿用官方 Chat 展示偏好：进入该工作区的会话时自动切换，离开工作区会话后恢复全局值。',
         'dialog.title': '工作区设置',
         'dialog.save': '保存',
         'dialog.saving': '保存中…',
@@ -109,7 +123,6 @@ window.__ModuleLoader__.load({
         'dialog.close': '关闭',
         'dialog.reset': '恢复继承全局设置',
         'dialog.resetting': '正在恢复…',
-        'dialog.hint': '修改立即生效，并同步到该工作区中当前打开的空白会话。',
         'menu.settings': '工作区设置',
         'menu.rename': '重命名',
         'menu.delete': '删除工作区',
@@ -154,6 +167,7 @@ window.__ModuleLoader__.load({
         'field.effort': 'Effort',
         'field.effortHint': 'Reasoning effort for the selected model; inherits global without a model.',
         'field.inheritGlobal': 'Follow global default',
+        'field.inheritWithValue': ' ({value})',
         'field.modelDefault': 'Model default',
         'field.noEffort': 'This model has no effort control',
         'field.chooseModelFirst': 'Choose a model first',
@@ -162,11 +176,24 @@ window.__ModuleLoader__.load({
         'field.noMatchingModels': 'No matching models.',
         'field.providerAccount': 'DeepSeek Account',
         'field.providerOfficial': 'DeepSeek',
+        'preset.standard': 'Standard mode',
+        'preset.ptc': 'PTC mode',
+        'preset.minimal': 'Minimal mode',
+        'preset.cordis': 'Creator mode',
+        'permission.read-only': 'Read Only',
+        'permission.workspace-write': 'Workspace Write',
+        'permission.danger-full-access': 'Full access',
+        'permission.auto': 'Auto review',
+        'transcript.compact': 'Compact',
+        'transcript.standard': 'Standard',
+        'transcript.detailed': 'Detailed',
+        'transcript.verbose': 'Verbose',
+        'collapse.completion': 'On completion',
+        'collapse.next-input': 'On next message',
         'field.transcript': 'Work details',
         'field.transcriptHint': 'Choose how much detail to show for tool calls; applies while a session in this workspace is active.',
         'field.collapse': 'Collapse work details',
         'field.collapseHint': 'Choose when to automatically collapse work details; applies while a session in this workspace is active.',
-        'chat.hint': 'These two reuse the official Chat presentation preference: switched while a session in this workspace is active and restored to the global value otherwise.',
         'dialog.title': 'Workspace Settings',
         'dialog.save': 'Save',
         'dialog.saving': 'Saving…',
@@ -174,7 +201,6 @@ window.__ModuleLoader__.load({
         'dialog.close': 'Close',
         'dialog.reset': 'Reset to global',
         'dialog.resetting': 'Resetting…',
-        'dialog.hint': 'Changes apply immediately, including to the blank session already open in this workspace.',
         'menu.settings': 'Workspace settings',
         'menu.rename': 'Rename',
         'menu.delete': 'Delete workspace',
@@ -232,30 +258,36 @@ window.__ModuleLoader__.load({
 
     const BUILTIN_PRESET_IDS = new Set(['standard', 'ptc', 'minimal', 'cordis'])
 
-    function displayPreset(catalog, id, copy) {
+    function displayPreset(catalog, id, copy, t) {
       const preset = catalog?.presets?.find((entry) => entry.id === id)
       const builtin = copy?.presets?.[id]
       // The shipped presets are product copy owned by ui-agent-preset; the
       // Host roster serializes their Chinese canonical name even when the UI
       // locale is English. Built-ins therefore always use the active locale's
       // product copy; custom presets keep the name their author gave them.
-      if (builtin !== undefined && BUILTIN_PRESET_IDS.has(id)) return builtin
+      if (builtin !== undefined && BUILTIN_PRESET_IDS.has(id)) {
+        return t === undefined ? builtin : t(`preset.${id}`)
+      }
       if (builtin !== undefined && (preset?.name === undefined || preset.name === id || preset.name === '')) return builtin
       return preset?.name ?? builtin ?? id
     }
 
-    function displayPermission(catalog, value, copy) {
+    function displayPermission(catalog, value, copy, t) {
       const option = catalog?.permissions?.find((entry) => entry.value === value)
       const builtin = copy?.permissions?.[value]
-      if (builtin !== undefined) return builtin
+      if (builtin !== undefined) {
+        return t === undefined ? builtin : t(`permission.${value}`)
+      }
       return displayTitleCase(option?.name ?? value)
     }
 
-    function transcriptLabel(copy, value) {
+    function transcriptLabel(copy, value, t) {
+      if (copy?.transcript?.[value] !== undefined && t !== undefined) return t(`transcript.${value}`)
       return copy?.transcript?.[value] ?? value
     }
 
-    function collapseLabel(copy, value) {
+    function collapseLabel(copy, value, t) {
+      if (copy?.collapse?.[value] !== undefined && t !== undefined) return t(`collapse.${value}`)
       return copy?.collapse?.[value] ?? value
     }
 
@@ -296,7 +328,6 @@ window.__ModuleLoader__.load({
 .wsx-chevron{flex:none;color:var(--dsw-alias-label-caption)}
 .wsx-dialog{width:min(620px,calc(100vw - 48px));max-width:min(620px,calc(100vw - 48px))}
 .wsx-empty{padding:28px 0;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px;display:flex;flex-direction:column;align-items:flex-start;gap:12px}
-.wsx-dialog-hint{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;margin:14px 0 0}
 .wsx-dialog-status{margin-top:10px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
 .wsx-error{margin-top:12px;padding:9px 10px;border-radius:8px;background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 12%,transparent);color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px;word-break:break-word}
 .wsx-status{display:flex;align-items:center;gap:10px;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:20px;padding:20px 0}
@@ -425,10 +456,10 @@ window.__ModuleLoader__.load({
 
     function summaryChips(catalog, settings, t, copy) {
       const chips = []
-      if (settings?.preset) chips.push(t('summary.globalMode', { name: displayPreset(catalog, settings.preset, copy) }))
-      else chips.push(t('summary.globalMode', { name: `${catalog?.defaultPreset ? displayPreset(catalog, catalog.defaultPreset, copy) : '—'} · ${t('field.inheritGlobal')}` }))
-      if (settings?.permission) chips.push(t('summary.globalPermission', { name: displayPermission(catalog, settings.permission, copy) }))
-      else chips.push(t('summary.globalPermission', { name: `${catalog?.defaultPermission ? displayPermission(catalog, catalog.defaultPermission, copy) : '—'} · ${t('field.inheritGlobal')}` }))
+      if (settings?.preset) chips.push(t('summary.globalMode', { name: displayPreset(catalog, settings.preset, copy, t) }))
+      else chips.push(t('summary.globalMode', { name: `${catalog?.defaultPreset ? displayPreset(catalog, catalog.defaultPreset, copy, t) : '—'} · ${t('field.inheritGlobal')}` }))
+      if (settings?.permission) chips.push(t('summary.globalPermission', { name: displayPermission(catalog, settings.permission, copy, t) }))
+      else chips.push(t('summary.globalPermission', { name: `${catalog?.defaultPermission ? displayPermission(catalog, catalog.defaultPermission, copy, t) : '—'} · ${t('field.inheritGlobal')}` }))
       if (settings?.model) {
         const effort = effortName(catalog, settings.model)
         chips.push(t('summary.globalModel', { name: modelName(catalog, settings.model) + (effort === undefined ? '' : ` · ${effort}`) }))
@@ -436,8 +467,8 @@ window.__ModuleLoader__.load({
         const fallback = catalog?.defaultModel === undefined ? '—' : modelName(catalog, catalog.defaultModel)
         chips.push(t('summary.globalModel', { name: `${fallback} · ${t('field.inheritGlobal')}` }))
       }
-      if (settings?.transcriptView) chips.push(t('summary.transcript', { name: transcriptLabel(copy, settings.transcriptView) }))
-      if (settings?.collapseTiming) chips.push(t('summary.collapse', { name: collapseLabel(copy, settings.collapseTiming) }))
+      if (settings?.transcriptView) chips.push(t('summary.transcript', { name: transcriptLabel(copy, settings.transcriptView, t) }))
+      if (settings?.collapseTiming) chips.push(t('summary.collapse', { name: collapseLabel(copy, settings.collapseTiming, t) }))
       return chips
     }
 
@@ -894,19 +925,19 @@ window.__ModuleLoader__.load({
 
       const presetOptions = [{
         value: '',
-        label: `${t('field.inheritGlobal')}${catalog.defaultPreset ? `（${displayPreset(catalog, catalog.defaultPreset, copy)}）` : ''}`,
+        label: `${t('field.inheritGlobal')}${catalog.defaultPreset ? t('field.inheritWithValue', { value: displayPreset(catalog, catalog.defaultPreset, copy, t) }) : ''}`,
       }, ...catalog.presets.map((preset) => ({
         value: preset.id,
-        label: `${displayPreset(catalog, preset.id, copy)}${typeof preset.broken === 'string' ? ' ⚠' : ''}`,
+        label: `${displayPreset(catalog, preset.id, copy, t)}${typeof preset.broken === 'string' ? ' ⚠' : ''}`,
         disabled: typeof preset.broken === 'string',
       }))]
 
       const permissionOptions = [{
         value: '',
-        label: `${t('field.inheritGlobal')}${catalog.defaultPermission ? `（${displayPermission(catalog, catalog.defaultPermission, copy)}）` : ''}`,
+        label: `${t('field.inheritGlobal')}${catalog.defaultPermission ? t('field.inheritWithValue', { value: displayPermission(catalog, catalog.defaultPermission, copy, t) }) : ''}`,
       }, ...catalog.permissions.map((permission) => ({
         value: permission.value,
-        label: displayPermission(catalog, permission.value, copy),
+        label: displayPermission(catalog, permission.value, copy, t),
       }))]
 
       const transcriptOptions = [{
@@ -914,7 +945,7 @@ window.__ModuleLoader__.load({
         label: t('field.inheritGlobal'),
       }, ...['compact', 'standard', 'detailed', 'verbose'].map((value) => ({
         value,
-        label: transcriptLabel(copy, value),
+        label: transcriptLabel(copy, value, t),
       }))]
 
       const collapseOptions = [{
@@ -922,10 +953,10 @@ window.__ModuleLoader__.load({
         label: t('field.inheritGlobal'),
       }, ...['completion', 'next-input'].map((value) => ({
         value,
-        label: collapseLabel(copy, value),
+        label: collapseLabel(copy, value, t),
       }))]
 
-      const inheritModelLabel = `${t('field.inheritGlobal')}${catalog.defaultModel ? `（${modelName(catalog, catalog.defaultModel)}）` : ''}`
+      const inheritModelLabel = `${t('field.inheritGlobal')}${catalog.defaultModel ? t('field.inheritWithValue', { value: modelName(catalog, catalog.defaultModel) }) : ''}`
 
       const effortOptions = selectedModel === undefined
         ? [{ value: '', label: t('field.chooseModelFirst') }]
@@ -1015,8 +1046,6 @@ window.__ModuleLoader__.load({
           placeholder: t('field.inheritGlobal'),
           onChange: (value) => update({ collapseTiming: value }),
         }),
-        h('div', { key: 'hint', className: 'wsx-dialog-hint' }, t('chat.hint')),
-        h('div', { key: 'hint-primary', className: 'wsx-dialog-hint' }, t('dialog.hint')),
         saving ? h('div', { key: 'saving', className: 'wsx-dialog-status', role: 'status' }, t('dialog.saving')) : null,
         error === null ? null : h('div', { key: 'error', className: 'wsx-error', role: 'alert' }, error),
       ])
