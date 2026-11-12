@@ -11,9 +11,9 @@
  *   public setters (`agentPresets.select`, `permissionPresets.set`) and, for a
  *   model, through Agent-scoped one-shot request overrides on the first model
  *   request. Nothing here invents a Session event type.
- * - A per-Session "last applied" cache lets the plugin tell a workspace-derived
- *   value from a user's explicit in-session choice without extra Session events.
- *   It is a derived cache, safe to lose.
+ * - Per-Session records mark initialization once, before any asynchronous preset
+ *   work. Only fresh, awaited Agent creation may set mode and permissions;
+ *   resumed or already-visible blank Sessions keep their own choices.
  * - The routes are registered through `ctx.connection.fetch` when present and
  *   fall back to a loopback-checked `ctx.webServer` prefix route.
  */
@@ -27,8 +27,6 @@ export const inject = ['webServer']
 const API_PREFIX = '/api/workspace-settings'
 const STORE_VERSION = 1
 const BODY_LIMIT = 256 * 1024
-const SESSION_CACHE_LIMIT = 800
-const SESSION_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const MODEL_INDEX_REFRESH_MS = 30_000
 
 /** Work-details presentation modes accepted from the official Chat preference. */
@@ -173,11 +171,9 @@ export function normalizeStore(raw) {
     }
   }
   if (raw.sessions !== null && typeof raw.sessions === 'object' && !Array.isArray(raw.sessions)) {
-    const now = Date.now()
     for (const [sessionId, value] of Object.entries(raw.sessions)) {
       if (value === null || typeof value !== 'object') continue
       const at = typeof value.at === 'number' ? value.at : 0
-      if (now - at > SESSION_CACHE_TTL_MS) continue
       store.sessions[sessionId] = {
         ...stringOrUndefined(value.preset) === undefined ? {} : { preset: stringOrUndefined(value.preset) },
         ...stringOrUndefined(value.permission) === undefined ? {} : { permission: stringOrUndefined(value.permission) },
@@ -296,7 +292,6 @@ export function apply(ctx) {
   function persist() {
     saveChain = saveChain.then(async () => {
       const data = await store()
-      pruneSessions(data)
       const file = storeFile()
       await mkdir(resolve(file, '..'), { recursive: true })
       const temporary = `${file}.${process.pid}.${Date.now()}.tmp`
@@ -306,13 +301,6 @@ export function apply(ctx) {
       logger.warn(`workspace-settings: failed to persist store: ${String(error)}`)
     })
     return saveChain
-  }
-
-  function pruneSessions(data) {
-    const entries = Object.entries(data.sessions)
-    if (entries.length <= SESSION_CACHE_LIMIT) return
-    entries.sort((left, right) => (right[1]?.at ?? 0) - (left[1]?.at ?? 0))
-    for (const [sessionId] of entries.slice(SESSION_CACHE_LIMIT)) delete data.sessions[sessionId]
   }
 
   function entryForCwd(cwd) {
@@ -675,12 +663,16 @@ export function apply(ctx) {
     if (!isBlank(session)) return false
     const data = await store()
     const entry = entryForCwd(header.cwd)
-    if (entry === undefined) return false
     const last = data.sessions[session.id]
+    // Only fresh creation initializes mode and permissions. Claim it before
+    // awaiting catalogs, including Sessions without workspace overrides.
+    const initialize = reason === 'created' && last === undefined
+    if (initialize) rememberApplied(session.id, {})
+    if (entry === undefined) return false
     let changed = false
 
     /* mode / agent preset */
-    const presets = ctx.get('agentPresets')
+    const presets = initialize ? ctx.get('agentPresets') : undefined
     if (presets !== undefined) {
       try {
         const catalog = await presetCatalog(true)
@@ -702,7 +694,7 @@ export function apply(ctx) {
     }
 
     /* permissions */
-    const permissions = ctx.get('permissionPresets')
+    const permissions = initialize ? ctx.get('permissionPresets') : undefined
     if (permissions !== undefined) {
       try {
         const fallback = permissions.defaultPreset
@@ -775,47 +767,9 @@ export function apply(ctx) {
     return applied
   }
 
-  /**
-   * Re-assert the workspace mode after an external blank-session preset switch.
-   *
-   * The built-in "new session" flow reuses a live blank session and first
-   * switches its preset back to the requested/default one. That records an
-   * `agent-preset/selected` event and does not re-run `agent/created`, so the
-   * workspace value would otherwise be lost for every reused blank Session.
-   * An explicit user choice in the session (not the default and not our own
-   * last applied value) is still respected.
-   */
-  async function reapplyPresetOnSelection(sessionId, selectedPreset) {
+  ctx.on('agent/created', async ({ agent, source }) => {
     try {
-      const session = ctx.get('sessions')?.get?.(sessionId)
-      if (session === undefined) return
-      const header = session.header
-      if (header.origin === 'subagent' || header.parentSession !== undefined) return
-      if (!isBlank(session)) return
-      const presets = ctx.get('agentPresets')
-      const agent = ctx.get('agents')?.get?.(sessionId)
-      if (presets === undefined || agent === undefined) return
-      const data = await store()
-      const entry = entryForCwd(header.cwd)
-      if (entry === undefined) return
-      const catalog = await presetCatalog(true)
-      const target = entry.preset ?? catalog.defaultPreset
-      if (typeof target !== 'string' || target === '') return
-      if (selectedPreset === target) return
-      const last = data.sessions[sessionId]
-      if (!mayApplyValue(selectedPreset, catalog.defaultPreset, last?.preset)) return
-      await presets.select(agent, target)
-      rememberApplied(sessionId, { ...(last ?? {}), preset: target })
-    } catch (error) {
-      logger.warn(`workspace-settings: could not re-apply the workspace mode after a preset switch: ${String(error)}`)
-    }
-  }
-
-  ctx.on('agent-preset/selected', (sessionId, agentPreset) => reapplyPresetOnSelection(sessionId, agentPreset))
-
-  ctx.on('agent/created', async ({ agent }) => {
-    try {
-      await applyToAgent(agent, 'created')
+      await applyToAgent(agent, source === 'startup' ? 'created' : 'resumed')
     } catch (error) {
       logger.warn(`workspace-settings: agent/created hook failed: ${String(error)}`)
     }
