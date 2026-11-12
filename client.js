@@ -1251,8 +1251,8 @@ window.__ModuleLoader__.load({
       const catalogRef = React.useRef(catalog)
       catalogRef.current = catalog
 
-      const openMenu = React.useCallback((workspaceId, rect) => {
-        setMenu({ workspaceId, rect })
+      const openMenu = React.useCallback((workspaceId, rect, anchor) => {
+        setMenu({ workspaceId, rect, ...anchor })
         // Provider catalogs (for example a third-party adapter's per-model
         // reasoning efforts) can change after the page first loaded. Refresh
         // on every open so the dialog's effort options match the live model.
@@ -1268,14 +1268,16 @@ window.__ModuleLoader__.load({
           if (button !== found.menuButton) return
           event.preventDefault()
           event.stopPropagation()
-          openMenu(found.workspaceId, rectOf(found.menuButton))
+          openMenu(found.workspaceId, rectOf(found.menuButton), { anchorRef: { current: found.menuButton } })
         }
         const onContextMenu = (event) => {
           const found = workspaceTriggerOf(event)
           if (found === undefined) return
           event.preventDefault()
           event.stopPropagation()
-          openMenu(found.workspaceId, pointRect(event.clientX, event.clientY))
+          openMenu(found.workspaceId, pointRect(event.clientX, event.clientY), {
+            anchorPoint: { x: event.clientX, y: event.clientY },
+          })
         }
         document.addEventListener('click', onClick, true)
         document.addEventListener('contextmenu', onContextMenu, true)
@@ -1363,6 +1365,9 @@ window.__ModuleLoader__.load({
           key: 'workspace-menu',
           open: true,
           anchor: null,
+          anchorRef: menu.anchorRef,
+          anchorPoint: menu.anchorPoint,
+          // Older DSH hosts still read the rectangle callback.
           getAnchorRect: () => menu.rect,
           items: menuItems,
           onSelect: pick,
