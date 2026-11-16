@@ -70,6 +70,7 @@ function fakeAgent(state, { cwd = workspace.path, preset = 'standard', permissio
 
 function makeCtx(state) {
   state.modelSelections ??= new Map()
+  state.teamEnabled ??= new Map()
   const handlers = new Map()
   const serviceMap = new Map()
   const routes = []
@@ -181,6 +182,14 @@ function makeCtx(state) {
     },
   })
   serviceMap.set('agentDefaultModel', { currentSelection: () => ({ provider: 'deepseek', model: 'deepseek-chat' }) })
+  serviceMap.set('agentTeams', {
+    isEnabled(agent) {
+      return state.teamEnabled.get(agent.id) === true
+    },
+    async setEnabled(agent, enabled) {
+      state.teamEnabled.set(agent.id, enabled)
+    },
+  })
   serviceMap.set('agents', agents)
   serviceMap.set('sessionProjections', {
     stateOf(session, key) {
@@ -256,6 +265,7 @@ test('pure helpers', () => {
     model: { provider: 'deepseek', model: 'deepseek-chat', reasoningEffort: 'max' },
     transcriptView: null,
     collapseTiming: null,
+    team: null,
   })
   assert.throws(
     () => mod.normalizeRequestedSettings({ preset: 'nope' }, { presets: [], permissions: [], models: [] }),
@@ -278,6 +288,7 @@ test('pure helpers', () => {
     model: { provider: 'deepseek', model: 'deepseek-chat' },
     transcriptView: null,
     collapseTiming: null,
+    team: null,
     updatedAt: 't',
   })
 })
@@ -308,6 +319,7 @@ test('catalog, save, reset and inheritance', async () => {
       preset: 'creative',
       permission: 'danger-full-access',
       model: { provider: 'deepseek', model: 'deepseek-chat', reasoningEffort: 'max' },
+      team: true,
     },
   })
   assert.equal(saveResponse.status, 200, JSON.stringify(saveResponse.body))
@@ -321,6 +333,7 @@ test('catalog, save, reset and inheritance', async () => {
     model: 'deepseek-chat',
     reasoningEffort: 'max',
   })
+  assert.equal(state.teamEnabled.get(blank.id), true)
 
   const stored = JSON.parse(await readFile(join(home, 'storages', 'workspace-settings', 'settings.json'), 'utf8'))
   assert.equal(Object.keys(stored.workspaces).length, 1)
@@ -335,6 +348,7 @@ test('catalog, save, reset and inheritance', async () => {
     model: 'deepseek-chat',
     reasoningEffort: 'max',
   })
+  assert.equal(state.teamEnabled.get(second.id), true)
 
   // First-request model override is installed by the blank-agent pass.
   const resolved = await second.emitRequest(async () => ({ provider: 'deepseek', model: 'deepseek-chat' }))

@@ -4,7 +4,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/dsh-workspace-settings)](https://www.npmjs.com/package/dsh-workspace-settings)
 [![GitHub stars](https://img.shields.io/github/stars/Thunderunruly/workspace-settings?style=social)](https://github.com/Thunderunruly/workspace-settings)
 [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.3-4a6cff)](https://github.com/deepseek-ai/deepseek-harness)
+[![DSH](https://img.shields.io/badge/DSH-0.2.2--rc.3-4a6cff)](https://github.com/deepseek-ai/deepseek-harness)
 
 **English** | [简体中文](README.zh-CN.md)
 
@@ -44,11 +44,16 @@ follow it too.*
 
 ## Features
 
+- **Agent teamwork default** — optionally enable Agent Teams for new root Sessions in a
+  workspace, with the same shared-task coordination and token tradeoff as the built-in switch.
+- **Native context menu** — the Workspace settings action is contributed through the host's
+  shared `contextMenus` API, so native Rename/Delete and other plugins' menu actions stay
+  intact instead of being re-rendered by this plugin.
 - **Workspace menu entry** — each workspace row's `...` menu gains a **Workspace settings**
   item above Rename / Delete. Right-clicking the workspace row opens the same official menu.
 - **Settings page** — Settings → **Workspace settings** lists every workspace with a summary
   of its overrides and an Edit action.
-- **Six per-workspace defaults**:
+- **Seven per-workspace defaults**:
 
   | Setting | Values |
   | --- | --- |
@@ -58,6 +63,7 @@ follow it too.*
   | Effort | reasoning effort of the chosen model |
   | Work details | Compact / Standard / Detailed / Verbose, or the global value |
   | Collapse timing | On completion / On next message, or the global value |
+  | Agent teamwork | Enabled / disabled / follow the default (off) |
 
 - **Automatic inheritance** — a new or reused blank session in the workspace receives the
   stored mode, permission preset, model and reasoning effort. The workspace model plus its
@@ -80,8 +86,8 @@ follow it too.*
 ## Requirements
 
 - **DeepSeek Harness (DSH)** with the Web UI and plugin support. Developed and verified
-  against DSH `0.2.1-rc.3` (desktop profile).
-- **Recommended DSH version:** `0.2.1-rc.3`; supported range: `>=0.2.1-rc.3 <0.3.0-0`
+  against DSH `0.2.2-rc.3` (desktop profile).
+- **Recommended DSH version:** `0.2.2-rc.3`; supported range: `>=0.2.2-rc.3 <0.3.0-0`
   (declared as `engines.dsh` in `package.json`).
 - The plugin is ESM (`"type": "module"`) and loads `react` plus the host UI primitives from
   the running DSH client; no runtime dependencies are bundled.
@@ -100,7 +106,7 @@ dsh plugin --profile <profile> add dsh-workspace-settings
 Install a pinned version or upgrade later:
 
 ```sh
-dsh plugin --profile <profile> add dsh-workspace-settings@1.0.3
+dsh plugin --profile <profile> add dsh-workspace-settings@1.1.0
 dsh plugin --profile <profile> add dsh-workspace-settings@latest
 ```
 
@@ -182,7 +188,7 @@ Setting every dimension back to **Follow global default** removes the workspace 
 
 ## Work-details preferences
 
-DSH 0.2.1 stores **work details** and **collapse timing** as global Chat preferences
+DSH 0.2.2 stores **work details** and **collapse timing** as global Chat preferences
 (`ui-chat`), not per session. The plugin therefore treats its workspace value as a
 presentation override:
 
@@ -262,9 +268,8 @@ LICENSE             # MIT
 
 ## Limitations
 
-- DSH 0.2.1 has no workspace-menu extension slot. The plugin therefore intercepts the
-  workspace row's `...` menu and re-renders it with the **official** `Menu` primitive. If a
-  future DSH release exposes a native slot, this should move there.
+- Agent teamwork is a per-root-Session selection in DSH; the workspace value is applied when
+  a blank root Session is activated, while child Sessions inherit the tree's selection.
 - Model/effort defaults only affect the first model request of a new session; that keeps the
   in-session model selector fully authoritative afterwards.
 - Work details / collapse timing are presentation preferences without a per-session API, so

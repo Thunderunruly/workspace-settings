@@ -93,7 +93,7 @@ export function normalizeModel(value) {
  */
 export function normalizeRequestedSettings(raw, catalog) {
   if (raw === null) {
-    return { preset: null, permission: null, model: null, transcriptView: null, collapseTiming: null }
+    return { preset: null, permission: null, model: null, transcriptView: null, collapseTiming: null, team: null }
   }
   if (raw === undefined || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new Error('settings must be an object or null')
@@ -146,7 +146,12 @@ export function normalizeRequestedSettings(raw, catalog) {
     }
     collapseTiming = raw.collapseTiming
   }
-  return { preset, permission, model, transcriptView, collapseTiming }
+  let team = null
+  if (raw.team !== undefined && raw.team !== null) {
+    if (typeof raw.team !== 'boolean') throw new Error('settings.team must be a boolean or null')
+    team = raw.team
+  }
+  return { preset, permission, model, transcriptView, collapseTiming, team }
 }
 
 /** Normalize every loaded store record, dropping records that no longer validate. */
@@ -168,6 +173,7 @@ export function normalizeStore(raw) {
         model,
         transcriptView: TRANSCRIPT_VIEW_MODES.includes(value.transcriptView) ? value.transcriptView : null,
         collapseTiming: COLLAPSE_TIMINGS.includes(value.collapseTiming) ? value.collapseTiming : null,
+        team: value.team === true ? true : value.team === false ? false : null,
         updatedAt: typeof value.updatedAt === 'string' ? value.updatedAt : new Date(0).toISOString(),
       }
     }
@@ -181,6 +187,7 @@ export function normalizeStore(raw) {
       store.sessions[sessionId] = {
         ...stringOrUndefined(value.preset) === undefined ? {} : { preset: stringOrUndefined(value.preset) },
         ...stringOrUndefined(value.permission) === undefined ? {} : { permission: stringOrUndefined(value.permission) },
+        ...value.team === true || value.team === false ? { team: value.team } : {},
         at,
       }
     }
@@ -209,6 +216,7 @@ function publicSettings(entry) {
     model: entry?.model ?? null,
     transcriptView: entry?.transcriptView ?? null,
     collapseTiming: entry?.collapseTiming ?? null,
+    team: entry?.team === true ? true : entry?.team === false ? false : null,
     updatedAt: entry?.updatedAt ?? null,
   }
 }
@@ -241,6 +249,7 @@ export function sanitizeCatalogSettings(entry, presets, permissions, modelInfo) 
     model,
     transcriptView: TRANSCRIPT_VIEW_MODES.includes(entry.transcriptView) ? entry.transcriptView : null,
     collapseTiming: COLLAPSE_TIMINGS.includes(entry.collapseTiming) ? entry.collapseTiming : null,
+    team: entry.team === true ? true : entry.team === false ? false : null,
     updatedAt: entry.updatedAt ?? null,
   }
 }
@@ -723,6 +732,32 @@ export function apply(ctx) {
       }
     }
 
+    /* agent teamwork: a per-root-Session selection in current DSH. Apply the
+       workspace default only while the Session is still blank; a manual team
+       switch made in the Session is preserved unless it is our last value. */
+    let appliedTeam
+    const teams = ctx.get('agentTeams')
+    if (
+      teams !== undefined
+      && typeof teams.isEnabled === 'function'
+      && typeof teams.setEnabled === 'function'
+      && (entry.team === true || entry.team === false)
+    ) {
+      try {
+        const current = teams.isEnabled(agent)
+        if (current === entry.team) {
+          appliedTeam = entry.team
+        } else if (mayApplyValue(current, false, last?.team)) {
+          await teams.setEnabled(agent, entry.team)
+          appliedTeam = entry.team
+          changed = true
+          logger.info?.(`workspace-settings: set agent teamwork ${entry.team} on session ${session.id} (${reason})`)
+        }
+      } catch (error) {
+        logger.warn(`workspace-settings: could not apply agent teamwork to session ${session.id}: ${String(error)}`)
+      }
+    }
+
     /* model + effort: install the request override and, for a still-blank
        Session, record the workspace model as its selected model so the
        composer reflects it immediately. */
@@ -756,6 +791,7 @@ export function apply(ctx) {
       // permission projection unavailable
     }
     if (appliedModel !== undefined) next.model = modelSelectionOf(appliedModel)
+    if (appliedTeam === true || appliedTeam === false) next.team = appliedTeam
     last === undefined ? rememberApplied(session.id, next) : rememberApplied(session.id, { ...last, ...next })
     return changed
   }
@@ -877,6 +913,7 @@ export function apply(ctx) {
         && normalized.model === null
         && normalized.transcriptView === null
         && normalized.collapseTiming === null
+        && normalized.team === null
       const data = await store()
       if (isEmpty) delete data.workspaces[key]
       else {

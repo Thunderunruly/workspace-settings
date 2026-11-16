@@ -4,7 +4,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/dsh-workspace-settings)](https://www.npmjs.com/package/dsh-workspace-settings)
 [![GitHub stars](https://img.shields.io/github/stars/Thunderunruly/workspace-settings?style=social)](https://github.com/Thunderunruly/workspace-settings)
 [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.3-4a6cff)](https://github.com/deepseek-ai/deepseek-harness)
+[![DSH](https://img.shields.io/badge/DSH-0.2.2--rc.3-4a6cff)](https://github.com/deepseek-ai/deepseek-harness)
 
 [English](README.md) | **简体中文**
 
@@ -40,10 +40,14 @@
 
 ## 功能
 
+- **默认启用智能体团队协作**：可为工作区的新根会话启用 Agent Teams，使用共享任务板协调分工，
+  同时接受相应的 token 开销。
+- **原生右键菜单**：工作区设置动作通过宿主的共享 `contextMenus` API 加入菜单；原生重命名 /
+  删除以及其他插件的菜单项都会保留，不再由本插件重绘。
 - **工作区菜单入口**：工作区行 `...` 菜单新增 **工作区设置**，位于重命名 / 删除工作区
   上方；右键工作区行也会打开同一个官方菜单。
 - **设置页**：设置 → **工作区设置** 列出全部工作区及其覆盖项摘要，并提供编辑按钮。
-- **六项按工作区保存的默认值**：
+- **七项按工作区保存的默认值**：
 
   | 设置 | 可选值 |
   | --- | --- |
@@ -53,6 +57,7 @@
   | 强度 | 所选模型的推理强度 |
   | 工作步骤展示 | 简洁 / 标准 / 详细 / 完全展开，或跟随全局 |
   | 工作步骤收起时机 | 回答结束后 / 下次有新消息时，或跟随全局 |
+  | 智能体团队协作 | 启用 / 停用 / 跟随默认（关闭） |
 
 - **自动继承**：工作区内新建或复用的空白会话会收到保存的模式、权限预设、模型与推理强度。
   工作区模型及其强度会立即写为该会话已选中的值，首个消息之前输入区就显示工作区模型与强度，
@@ -71,9 +76,9 @@
 
 ## 环境要求
 
-- **DeepSeek Harness（DSH）**，需支持 Web UI 与插件；开发与验证基于 DSH `0.2.1-rc.3`
+- **DeepSeek Harness（DSH）**，需支持 Web UI 与插件；开发与验证基于 DSH `0.2.2-rc.3`
   桌面端 profile。
-- **推荐 DSH 版本：** `0.2.1-rc.3`；支持范围：`>=0.2.1-rc.3 <0.3.0-0`（在 `package.json`
+- **推荐 DSH 版本：** `0.2.2-rc.3`；支持范围：`>=0.2.2-rc.3 <0.3.0-0`（在 `package.json`
   的 `engines.dsh` 中声明）。
 - 插件包为 ESM（`"type": "module"`），运行时从宿主客户端加载 `react` 与 UI 原语，不打包
   额外依赖。
@@ -91,7 +96,7 @@ dsh plugin --profile <profile> add dsh-workspace-settings
 安装指定版本或升级：
 
 ```sh
-dsh plugin --profile <profile> add dsh-workspace-settings@1.0.3
+dsh plugin --profile <profile> add dsh-workspace-settings@1.1.0
 dsh plugin --profile <profile> add dsh-workspace-settings@latest
 ```
 
@@ -166,7 +171,7 @@ git clone https://github.com/Thunderunruly/workspace-settings.git
 
 ## 工作步骤展示与收起时机
 
-DSH 0.2.1 把 **工作步骤展示** 与 **工作步骤收起时机** 存为全局 Chat 偏好（`ui-chat`），
+DSH 0.2.2 把 **工作步骤展示** 与 **工作步骤收起时机** 存为全局 Chat 偏好（`ui-chat`），
 而不是会话级设置。插件把工作区值当作“展示期覆盖”：
 
 1. 当前激活会话属于带该值的工作区时，插件把官方 Chat 偏好切换到工作区值；
@@ -235,8 +240,8 @@ LICENSE             # MIT
 
 ## 已知限制
 
-- DSH 0.2.1 没有工作区菜单扩展槽位。插件因此接管工作区行的 `...` 菜单，并用**官方
-  `Menu` 原语**重新渲染。未来 DSH 若提供原生槽位，应迁移过去。
+- 智能体团队协作在 DSH 中是根会话级选择；工作区值在空白根会话激活时应用，子会话继承整棵
+  会话树的团队设置。
 - 模型 / 强度默认值只作用于新会话的首个模型请求，之后会话内模型选择器完全优先。
 - 工作步骤展示 / 收起时机没有 per-session API，只能通过“激活工作区会话时切换官方全局
   偏好”的方式实现（见上文）。

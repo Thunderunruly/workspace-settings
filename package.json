@@ -1,6 +1,6 @@
 {
   "name": "dsh-workspace-settings",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "type": "module",
   "description": "Per-workspace session defaults for DeepSeek Harness: mode (agent preset), permission preset, model, reasoning effort and Chat work-details preferences, saved per workspace and applied to new sessions.",
   "author": "Thunderunruly",
@@ -27,7 +27,7 @@
     "web-ui"
   ],
   "engines": {
-    "dsh": ">=0.2.1-rc.3 <0.3.0-0"
+    "dsh": ">=0.2.2-rc.3 <0.3.0-0"
   },
   "exports": {
     ".": "./index.js",
@@ -49,7 +49,7 @@
   ],
   "dsh": {
     "engines": {
-      "dsh": ">=0.2.1-rc.3 <0.3.0-0"
+      "dsh": ">=0.2.2-rc.3 <0.3.0-0"
     },
     "bundle": {
       "patch": "./cordis.patch.yml"
@@ -63,7 +63,8 @@
       "inject": [
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-settings-general",
-        "@deepseek-ai/dsh-client-ui-workspace"
+        "@deepseek-ai/dsh-client-ui-workspace",
+        "@deepseek-ai/dsh-client-ui-context-menu"
       ]
     }
   }

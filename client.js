@@ -25,7 +25,7 @@ window.__ModuleLoader__.load({
     const h = React.createElement
     const NS = 'workspace-settings'
     const API = '/api/workspace-settings'
-    const REQUIRED_PRIMITIVES = ['Menu', 'Modal', 'Button', 'Input']
+    const REQUIRED_PRIMITIVES = ['Menu', 'Modal', 'Button', 'Input', 'Switch']
     const PRIMITIVES_ID = '@deepseek-ai/dsh-client-ui-primitives'
 
     let P = null
@@ -88,6 +88,8 @@ window.__ModuleLoader__.load({
         'field.modelHint': '新会话首个请求使用的模型。',
         'field.effort': '强度',
         'field.effortHint': '所选模型的推理强度；不选模型时跟随全局。',
+        'field.team': '启用智能体团队协作',
+        'field.teamHint': '通过共享任务板协调多个智能体的分工与进度；复杂任务表现更好，token 开销也更高。',
         'field.inheritGlobal': '跟随全局默认',
         'field.inheritWithValue': '（{value}）',
         'field.modelDefault': '模型默认',
@@ -138,6 +140,8 @@ window.__ModuleLoader__.load({
         'summary.globalModel': '模型：{name}',
         'summary.transcript': '工作步骤展示：{name}',
         'summary.collapse': '收起时机：{name}',
+        'summary.teamOn': '智能体团队协作：已启用',
+        'summary.teamOff': '智能体团队协作：已停用',
         'summary.inherit': '继承全局设置：{mode} · {permission} · {model}',
         'summary.none': '未设置（跟随全局）',
         'error.load': '读取工作区设置失败：{message}',
@@ -166,6 +170,8 @@ window.__ModuleLoader__.load({
         'field.modelHint': 'Model used by the first request of new sessions.',
         'field.effort': 'Effort',
         'field.effortHint': 'Reasoning effort for the selected model; inherits global without a model.',
+        'field.team': 'Enable agent teamwork',
+        'field.teamHint': 'Coordinate work and progress across agents with a shared task board for better results on complex tasks, at correspondingly higher token costs.',
         'field.inheritGlobal': 'Follow global default',
         'field.inheritWithValue': ' ({value})',
         'field.modelDefault': 'Model default',
@@ -216,6 +222,8 @@ window.__ModuleLoader__.load({
         'summary.globalModel': 'Model: {name}',
         'summary.transcript': 'Work details: {name}',
         'summary.collapse': 'Collapse: {name}',
+        'summary.teamOn': 'Agent teamwork: enabled',
+        'summary.teamOff': 'Agent teamwork: disabled',
         'summary.effort': 'Effort: {name}',
         'summary.inherit': 'Inherit global: {mode} · {permission} · {model}',
         'summary.none': 'Not set (follow global)',
@@ -469,6 +477,8 @@ window.__ModuleLoader__.load({
       }
       if (settings?.transcriptView) chips.push(t('summary.transcript', { name: transcriptLabel(copy, settings.transcriptView, t) }))
       if (settings?.collapseTiming) chips.push(t('summary.collapse', { name: collapseLabel(copy, settings.collapseTiming, t) }))
+      if (settings?.team === true) chips.push(t('summary.teamOn'))
+      else if (settings?.team === false) chips.push(t('summary.teamOff'))
       return chips
     }
 
@@ -865,6 +875,7 @@ window.__ModuleLoader__.load({
           permission: settings.permission ?? '',
           modelKey: settings.model === null || settings.model === undefined ? '' : `${settings.model.provider}\u0000${settings.model.model}`,
           effort: settings.model?.reasoningEffort ?? '',
+          team: settings.team === true ? true : settings.team === false ? false : null,
           transcriptView: settings.transcriptView ?? '',
           collapseTiming: settings.collapseTiming ?? '',
         }
@@ -900,6 +911,7 @@ window.__ModuleLoader__.load({
           preset: next.preset === '' ? null : next.preset,
           permission: next.permission === '' ? null : next.permission,
           model,
+          team: next.team === true ? true : next.team === false ? false : null,
           transcriptView: next.transcriptView === '' ? null : next.transcriptView,
           collapseTiming: next.collapseTiming === '' ? null : next.collapseTiming,
         }
@@ -1023,6 +1035,16 @@ window.__ModuleLoader__.load({
           disabled: !effortAvailable,
           placeholder: t('field.modelDefault'),
           onChange: (value) => update({ effort: value }),
+        }),
+        h(FieldRow, {
+          key: 'team',
+          label: t('field.team'),
+          hint: t('field.teamHint'),
+          control: h(P.Switch, {
+            checked: form.team === true,
+            label: t('field.team'),
+            onChange: (checked) => update({ team: checked === true }),
+          }),
         }),
         h(MenuSelect, {
           key: 'transcript',
@@ -1241,89 +1263,54 @@ window.__ModuleLoader__.load({
       return { x, y, left: x, top: y, right: x, bottom: y, width: 0, height: 0 }
     }
 
-    function Overlay({ t, copy, client }) {
+    /** Functions that the workspace context-menu action calls to open the editor. */
+    const settingsOpenHandlers = new Set()
+
+    function requestWorkspaceSettings(workspaceId) {
+      for (const handler of [...settingsOpenHandlers]) {
+        try {
+          handler(workspaceId)
+        } catch (error) {
+          console.warn('[workspace-settings] could not open the workspace settings dialog:', error)
+        }
+      }
+    }
+
+    /**
+     * Frame-level host for the Workspace Settings dialog. The workspace menu
+     * itself is the host's shared context menu: the action is registered in
+     * apply through ctx.contextMenus, so native Rename/Delete and contributions
+     * from other plugins stay intact and only this dialog is ours.
+     */
+    function Overlay({ t, copy }) {
       const [catalogState, loadCatalog] = useCatalog(t)
-      const [menu, setMenu] = React.useState(null)
       const [dialog, setDialog] = React.useState(null)
-      const [rename, setRename] = React.useState(null)
-      const [remove, setRemove] = React.useState(null)
       const catalog = catalogState.catalog
       const catalogRef = React.useRef(catalog)
       catalogRef.current = catalog
 
-      const openMenu = React.useCallback((workspaceId, rect) => {
-        setMenu({ workspaceId, rect })
-        // Provider catalogs (for example a third-party adapter's per-model
-        // reasoning efforts) can change after the page first loaded. Refresh
-        // on every open so the dialog's effort options match the live model.
-        void loadCatalog()
+      const openSettings = React.useCallback(async (workspaceId) => {
+        let current = catalogRef.current
+        if (current === null) {
+          try {
+            current = await loadCatalog()
+          } catch {
+            return
+          }
+        }
+        const workspace = current?.workspaces?.find((row) => row.workspaceId === workspaceId)
+        if (workspace !== undefined) setDialog(workspace)
       }, [loadCatalog])
 
       React.useEffect(() => {
-        const onClick = (event) => {
-          const found = workspaceTriggerOf(event)
-          if (found === undefined) return
-          const target = event.target
-          const button = typeof target.closest === 'function' ? target.closest('button') : null
-          if (button !== found.menuButton) return
-          event.preventDefault()
-          event.stopPropagation()
-          openMenu(found.workspaceId, rectOf(found.menuButton))
-        }
-        const onContextMenu = (event) => {
-          const found = workspaceTriggerOf(event)
-          if (found === undefined) return
-          event.preventDefault()
-          event.stopPropagation()
-          openMenu(found.workspaceId, pointRect(event.clientX, event.clientY))
-        }
-        document.addEventListener('click', onClick, true)
-        document.addEventListener('contextmenu', onContextMenu, true)
-        return () => {
-          document.removeEventListener('click', onClick, true)
-          document.removeEventListener('contextmenu', onContextMenu, true)
-        }
-      }, [openMenu])
+        settingsOpenHandlers.add(openSettings)
+        return () => settingsOpenHandlers.delete(openSettings)
+      }, [openSettings])
 
-      const workspaceOf = React.useCallback((workspaceId) => (
-        catalogRef.current?.workspaces?.find((workspace) => workspace.workspaceId === workspaceId)
-      ), [])
-
-      const pick = React.useCallback((id) => {
-        if (menu === null) return
-        const workspace = workspaceOf(menu.workspaceId)
-        setMenu(null)
-        if (id === 'rename' && workspace !== undefined) setRename(workspace)
-        else if (id === 'delete' && workspace !== undefined) setRemove(workspace)
-        else if (id === 'settings' && workspace !== undefined) setDialog(workspace)
-        else if (workspace === undefined) void loadCatalog()
-      }, [menu, workspaceOf, loadCatalog])
-
-      const menuItems = [
-        {
-          id: 'settings',
-          label: catalog === null ? t('menu.loading') : t('menu.settings'),
-          icon: icon('IconSettingsOutlineMedium', { size: 14 }),
-        },
-        {
-          id: 'rename',
-          label: t('menu.rename'),
-          icon: icon('IconEditOutlineRegular', { size: 14 }),
-          disabled: catalog === null,
-        },
-        {
-          id: 'delete',
-          label: t('menu.delete'),
-          icon: icon('IconTrashOutlineRegular', { size: 14 }),
-          danger: true,
-          disabled: catalog === null,
-        },
-      ]
-
-      const dialogs = []
-      if (dialog !== null && catalog !== null) {
-        const fresh = catalog.workspaces.find((workspace) => workspace.workspaceId === dialog.workspaceId) ?? dialog
-        dialogs.push(h(WorkspaceSettingsDialog, {
+      if (dialog === null || catalog === null) return null
+      const fresh = catalog.workspaces.find((workspace) => workspace.workspaceId === dialog.workspaceId) ?? dialog
+      return h('div', { className: 'wsx-root' },
+        h(WorkspaceSettingsDialog, {
           key: 'settings-dialog',
           t,
           copy,
@@ -1332,48 +1319,6 @@ window.__ModuleLoader__.load({
           onClose: () => setDialog(null),
           onSaved: () => { void loadCatalog() },
         }))
-      }
-      if (rename !== null) {
-        dialogs.push(h(RenameWorkspaceDialog, {
-          key: 'rename-dialog',
-          t,
-          workspace: rename,
-          onClose: () => setRename(null),
-          onDone: async (title) => {
-            await client.renameWorkspace(rename.workspaceId, title)
-            await loadCatalog()
-          },
-        }))
-      }
-      if (remove !== null) {
-        dialogs.push(h(DeleteWorkspaceDialog, {
-          key: 'delete-dialog',
-          t,
-          workspace: remove,
-          onClose: () => setRemove(null),
-          onDelete: async () => {
-            await client.deleteWorkspace(remove.workspaceId)
-            await loadCatalog()
-          },
-        }))
-      }
-
-      return h('div', { className: 'wsx-root' }, [
-        menu === null ? null : h(P.Menu, {
-          key: 'workspace-menu',
-          open: true,
-          anchor: null,
-          getAnchorRect: () => menu.rect,
-          items: menuItems,
-          onSelect: pick,
-          onClose: () => setMenu(null),
-          portal: true,
-          align: 'end',
-          side: 'bottom',
-          closeOnPointerLeave: true,
-        }),
-        ...dialogs,
-      ])
     }
 
     /* ---------------------------------------------------------------- */
@@ -1606,7 +1551,7 @@ window.__ModuleLoader__.load({
 
     const plugin = {
       name: 'dsh-workspace-settings-client',
-      inject: ['slots', 'locale', 'theme'],
+      inject: ['slots', 'locale', 'theme', 'contextMenus'],
       apply(ctx) {
         if (missingPrimitives.length > 0) {
           console.error(`[workspace-settings] cannot mount: missing host primitives ${missingPrimitives.join(', ')}`)
@@ -1654,6 +1599,31 @@ window.__ModuleLoader__.load({
 
         ctx.effect(() => startActiveSessionApplier(ctx), 'workspace-settings: active blank session applier')
         ctx.effect(() => startChatPolicy(ctx), 'workspace-settings: chat presentation policy')
+
+        /* Add the settings entry to the host's own workspace context menu. The
+           shared menu then keeps native Rename/Delete and every other plugin
+           contribution; this plugin only owns the dialog. */
+        const contextMenus = ctx.get('contextMenus')
+        const SettingsIcon = P?.IconSettingsOutlineMedium
+        if (contextMenus !== undefined && typeof contextMenus.register === 'function') {
+          if (SettingsIcon !== undefined) {
+            ctx.slots.inject('contextMenu.icon', () => ctx.slots.register({
+              name: 'contextMenu.icon',
+              key: 'workspace-settings',
+            }, SettingsIcon))
+          }
+          ctx.effect(() => contextMenus.register({
+            id: 'workspace-settings.open',
+            target: 'workspace',
+            order: 50,
+            resolve: ({ workspaceId }) => [{
+              id: 'settings',
+              label: translate('menu.settings'),
+              ...(SettingsIcon === undefined ? {} : { icon: { key: 'workspace-settings' } }),
+              run: () => requestWorkspaceSettings(workspaceId),
+            }],
+          }), 'workspace-settings: workspace context-menu action')
+        }
 
         const pageProps = () => ({ t: translate, client, copy: readCopy(ctx) })
         const overlayProps = () => ({ t: translate, client, copy: readCopy(ctx) })
