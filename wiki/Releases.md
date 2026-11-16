@@ -4,9 +4,32 @@
 
 ## Versioning
 
-Semantic versioning. The plugin targets DSH `0.2.1-rc.3` and declares
-`engines.dsh = ">=0.2.1-rc.3 <0.3.0-0"`. Breaking DSH integrations may require a matching
+Semantic versioning. The plugin targets DSH `0.2.2-rc.3` and declares
+`engines.dsh = ">=0.2.2-rc.3 <0.3.0-0"`. Breaking DSH integrations may require a matching
 plugin release even when the plugin's own behavior is unchanged.
+
+## v1.1.0 — 2026-11-16
+
+First release targeting DSH 0.2.2.
+
+### Features
+
+- The **Workspace settings** action is now a native workspace context-menu contribution through
+  `ctx.contextMenus`; native Rename/Delete/Open-in-folder and other plugins' rows are preserved
+  instead of being re-rendered by this plugin.
+- New per-workspace **Enable agent teamwork** switch. It is applied to blank root Sessions via
+  `agentTeams.setEnabled`, so new and reused blank Sessions inherit the workspace's choice.
+
+### Fixes
+
+- DSH 0.2.2 compatibility: the bundle now requires DSH `0.2.2-rc.3`, the old DOM menu
+  interception is gone, and the plugin re-registers in the updated profile.
+
+Install:
+
+```sh
+dsh plugin --profile <profile> add dsh-workspace-settings@1.1.0
+```
 
 ## v1.0.3 — 2026-11-06
 
